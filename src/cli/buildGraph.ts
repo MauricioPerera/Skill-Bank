@@ -21,6 +21,7 @@ async function main() {
     console.log('');
     console.log('Commands:');
     console.log('  same-topic       Build SAME_TOPIC edges based on embedding similarity');
+    console.log('  refers-to        Build REFERS_TO edges from markdown links ⭐ NEW');
     console.log('  stats            Show graph statistics');
     console.log('');
     console.log('Options for same-topic:');
@@ -29,9 +30,17 @@ async function main() {
     console.log('  --include-same-doc         Include same-document connections (default: cross-doc only)');
     console.log('  --use-title-sim            Use title similarity as well (default: false)');
     console.log('');
+    console.log('Options for refers-to:');
+    console.log('  --cross-doc-only           Only create cross-document links (default: false)');
+    console.log('  --bidirectional            Create reverse edges too (default: false)');
+    console.log('  --no-markdown              Disable markdown link detection (default: enabled)');
+    console.log('  --no-wiki                  Disable wiki link detection (default: enabled)');
+    console.log('');
     console.log('Examples:');
     console.log('  npx tsx src/cli/buildGraph.ts same-topic');
-    console.log('  npx tsx src/cli/buildGraph.ts same-topic --min-similarity 0.85 --max-connections 3');
+    console.log('  npx tsx src/cli/buildGraph.ts same-topic --min-similarity 0.85');
+    console.log('  npx tsx src/cli/buildGraph.ts refers-to');
+    console.log('  npx tsx src/cli/buildGraph.ts refers-to --cross-doc-only');
     console.log('  npx tsx src/cli/buildGraph.ts stats');
     process.exit(0);
   }
@@ -62,6 +71,64 @@ async function main() {
     }
 
     console.log('');
+    process.exit(0);
+  }
+
+  if (command === 'refers-to') {
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════════╗');
+    console.log('║           Building REFERS_TO Edges (Markdown Links)           ║');
+    console.log('╚════════════════════════════════════════════════════════════════╝');
+    console.log('');
+
+    // Parse options
+    let crossDocOnly = false;
+    let bidirectional = false;
+    let markdownLinks = true;
+    let wikiLinks = true;
+
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      
+      if (arg === '--cross-doc-only') {
+        crossDocOnly = true;
+      } else if (arg === '--bidirectional') {
+        bidirectional = true;
+      } else if (arg === '--no-markdown') {
+        markdownLinks = false;
+      } else if (arg === '--no-wiki') {
+        wikiLinks = false;
+      }
+    }
+
+    console.log('⚙️  Configuration:');
+    console.log(`   Markdown links [text](url): ${markdownLinks}`);
+    console.log(`   Wiki links [[page]]: ${wikiLinks}`);
+    console.log(`   Cross-doc only: ${crossDocOnly}`);
+    console.log(`   Bidirectional: ${bidirectional}`);
+    console.log('');
+
+    const { detectLinksInAllDocuments } = await import('../graph/linkDetector.js');
+    
+    const edgeCount = await detectLinksInAllDocuments({
+      detectMarkdownLinks: markdownLinks,
+      detectWikiLinks: wikiLinks,
+      crossDocumentOnly: crossDocOnly,
+      createBidirectional: bidirectional
+    });
+
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════════╗');
+    console.log('║                      Build Complete                            ║');
+    console.log('╚════════════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`✅ Created ${edgeCount} REFERS_TO edges`);
+    console.log('');
+    console.log('💡 Next steps:');
+    console.log('   - View stats: npx tsx src/cli/buildGraph.ts stats');
+    console.log('   - Query with graph: POST /api/query/smart');
+    console.log('');
+
     process.exit(0);
   }
 

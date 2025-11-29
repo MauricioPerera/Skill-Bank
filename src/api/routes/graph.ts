@@ -9,6 +9,7 @@ import {
   type GraphExpansionConfig
 } from '../../db/graphStore.js';
 import { buildSameTopicGraph, type SameTopicConfig } from '../../graph/relationsDetector.js';
+import { detectLinksInAllDocuments, getLinkStatistics, type LinkDetectionConfig } from '../../graph/linkDetector.js';
 
 const router = Router();
 
@@ -135,6 +136,45 @@ router.post('/build/same-topic', async (req, res) => {
         titleSimilarity: config.titleSimilarity || false
       }
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/graph/build/refers-to
+ * Build REFERS_TO edges from markdown links
+ */
+router.post('/build/refers-to', async (req, res) => {
+  try {
+    const config: Partial<LinkDetectionConfig> = req.body;
+    
+    const edgeCount = await detectLinksInAllDocuments(config);
+    
+    res.json({
+      message: 'REFERS_TO edges built successfully',
+      edgeCount,
+      config: {
+        detectMarkdownLinks: config.detectMarkdownLinks !== false,
+        detectWikiLinks: config.detectWikiLinks !== false,
+        crossDocumentOnly: config.crossDocumentOnly || false,
+        createBidirectional: config.createBidirectional || false
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/graph/link-stats
+ * Get statistics about markdown links in documents
+ */
+router.get('/link-stats', async (req, res) => {
+  try {
+    const stats = await getLinkStatistics();
+    
+    res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
