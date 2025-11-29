@@ -5,6 +5,8 @@ import { searchKnn, SearchFilters } from '../../db/vectorStore.js';
 import { embed } from '../../embeddings.js';
 import { type EdgeType } from '../../db/graphStore.js';
 import { graphRagQuery, smartGraphQuery, classicRagQuery } from '../../graph/graphRagEngine.js';
+import { getBM25Index, hybridSearch } from '../../search/bm25.js';
+import { queryResultCache, withCache, QueryCache } from '../../cache/queryCache.js';
 
 export const queryRouter = Router();
 
@@ -295,6 +297,112 @@ queryRouter.post('/classic', async (req: Request, res: Response) => {
         console.error('Error processing classic query:', error);
         res.status(500).json({
             error: 'Failed to process classic query',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * POST /api/query/hybrid
+ * Hybrid search combining BM25 and vector similarity
+ * 
+ * Body:
+ * {
+ *   "query": "machine learning regularization",
+ *   "k": 5,
+ *   "alpha": 0.5  // 0 = BM25 only, 1 = vector only
+ * }
+ */
+queryRouter.post('/hybrid', async (req: Request, res: Response) => {
+    try {
+        const { query, k = 5, alpha = 0.5 } = req.body;
+        
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({
+                error: 'Validation error',
+                message: 'query is required and must be a string'
+            });
+        }
+        
+        // Generate cache key
+        const cacheKey = `hybrid:${query}:${k}:${alpha}`;
+        
+        // Check cache
+        const cached = queryResultCache.get(cacheKey);
+        if (cached) {
+            return res.json({ ...cached, cached: true });
+        }
+        
+        // Get BM25 results
+        const bm25Index = getBM25Index();
+        const bm25Results = bm25Index.search(query, k * 2);
+        
+        // Get vector results
+        const queryEmbedding = await embed(query);
+        const vectorResults = searchKnn(queryEmbedding, k * 2);
+        
+        // Combine with hybrid search
+        const hybridResults = hybridSearch(
+            bm25Results,
+            vectorResults.map(r => ({ id: r.node_id, score: r.distance })),
+            { alpha }
+        );
+        
+        const result = {
+            query,
+            method: 'hybrid',
+            alpha,
+            results: hybridResults.slice(0, k),
+            stats: {
+                bm25Matches: bm25Results.length,
+                vectorMatches: vectorResults.length,
+                hybridMatches: hybridResults.length
+            }
+        };
+        
+        // Cache the result
+        queryResultCache.set(cacheKey, result);
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('Error processing hybrid query:', error);
+        res.status(500).json({
+            error: 'Failed to process hybrid query',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * POST /api/query/bm25
+ * BM25 text search only (for comparison/debugging)
+ */
+queryRouter.post('/bm25', async (req: Request, res: Response) => {
+    try {
+        const { query, k = 10 } = req.body;
+        
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({
+                error: 'Validation error',
+                message: 'query is required and must be a string'
+            });
+        }
+        
+        const bm25Index = getBM25Index();
+        const results = bm25Index.search(query, k);
+        
+        res.json({
+            query,
+            method: 'bm25',
+            results,
+            stats: bm25Index.getStats()
+        });
+        
+    } catch (error) {
+        console.error('Error processing BM25 query:', error);
+        res.status(500).json({
+            error: 'Failed to process BM25 query',
             message: error instanceof Error ? error.message : 'Unknown error'
         });
     }

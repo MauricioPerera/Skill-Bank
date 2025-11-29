@@ -8,7 +8,9 @@ import { queryRouter } from './routes/query.js';
 import { docsRouter } from './routes/docs.js';
 import { healthRouter } from './routes/health.js';
 import graphRouter from './routes/graph.js';
+import monitoringRouter, { recordRequest } from './routes/monitoring.js';
 import { rateLimitPresets, initAuth, authenticate, getAuthStatus, getRateLimitStats } from '../middleware/index.js';
+import { getAllCacheStats } from '../cache/queryCache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,12 +35,15 @@ export function createApp(): Express {
     // Serve static files from public directory
     app.use(express.static(path.join(__dirname, '../../public')));
 
-    // Request logging
+    // Request logging with metrics
     app.use((req: Request, res: Response, next: NextFunction) => {
         const start = Date.now();
         res.on('finish', () => {
             const duration = Date.now() - start;
             console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+            
+            // Record metrics
+            recordRequest(req.path, res.statusCode, duration);
         });
         next();
     });
@@ -49,15 +54,20 @@ export function createApp(): Express {
     app.use('/api/query', queryRouter);
     app.use('/api/docs', docsRouter);
     app.use('/api/graph', graphRouter);
+    app.use('/api/monitoring', monitoringRouter);
     
-    // Status endpoint (for monitoring)
+    // Status endpoint (quick overview)
     app.get('/api/status', (req: Request, res: Response) => {
         res.json({
             status: 'ok',
             auth: getAuthStatus(),
             rateLimit: getRateLimitStats(),
-            uptime: process.uptime(),
-            memory: process.memoryUsage()
+            cache: getAllCacheStats(),
+            uptime: Math.floor(process.uptime()),
+            memory: {
+                heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                heapTotalMB: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+            }
         });
     });
 
