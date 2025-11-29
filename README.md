@@ -8,7 +8,7 @@ This project demonstrates how to build an advanced RAG system that combines:
 - **Hybrid retrieval** (vector search + graph traversal)
 - **Multi-hop reasoning** for richer context discovery
 
-🎯 **Phase 2.0 Complete:** Advanced graph features with reranking, visualization, and REFERS_TO detection!
+🎯 **Phase 3.0 In Progress:** Entity extraction with NER, concept graphs, and MENTIONS/DEFINES edges!
 
 ## Features
 
@@ -884,21 +884,25 @@ See [docs/MATRYOSHKA.md](docs/MATRYOSHKA.md) for complete guide and trade-offs.
 
 See [ROADMAP.md](ROADMAP.md) for detailed feature plans and timeline.
 
-### Recently Completed ✅ (Phase 2.0)
+### Recently Completed ✅ (Phase 3.0)
+
+**Phase 3.0 - Entities & Concepts:**
+1.  ✅ **Named Entity Recognition (NER)** - Extract technologies, concepts, code refs, acronyms
+2.  ✅ **Concept Extraction** - Pattern-based extraction (no ML dependencies)
+3.  ✅ **MENTIONS/DEFINES Edges** - Link sections to concepts they mention or define
+4.  ✅ **Concept Co-occurrence** - RELATED_TO edges between co-occurring concepts
 
 **Phase 2.0 - Advanced Graph:**
-1.  ✅ **REFERS_TO Detection** - Automatic edge creation from markdown/wiki links
-2.  ✅ **Graph Visualization** - Export to D3.js, Cytoscape, Vis.js, GraphML
-3.  ✅ **Edge-Based Reranking** - Smart scoring by edge type, hop distance, similarity
-4.  ✅ **Multi-hop Reasoning** - 1-3 hops with configurable decay factor
+5.  ✅ **REFERS_TO Detection** - Automatic edge creation from markdown/wiki links
+6.  ✅ **Graph Visualization** - Export to D3.js, Cytoscape, Vis.js, GraphML
+7.  ✅ **Edge-Based Reranking** - Smart scoring by edge type, hop distance, similarity
+8.  ✅ **Multi-hop Reasoning** - 1-3 hops with configurable decay factor
 
 **Phase 1.5 - Knowledge Graph:**
-5.  ✅ **Knowledge Graph Infrastructure** - Edges table, graph store API, BFS expansion
-6.  ✅ **Graph-Aware RAG Engine** - Hybrid vector + graph retrieval
-7.  ✅ **SAME_TOPIC Auto-Detection** - Embedding similarity-based edge creation
-8.  ✅ **Matryoshka Embeddings** - 50-75% storage reduction, 2-6x speed improvement
-9.  ✅ **Ollama Integration** - Local AI embeddings (embeddinggemma validated)
-10. ✅ **Graph API Endpoints** - 12+ endpoints for graph operations
+9.  ✅ **Knowledge Graph Infrastructure** - Edges table, graph store API, BFS expansion
+10. ✅ **Graph-Aware RAG Engine** - Hybrid vector + graph retrieval
+11. ✅ **SAME_TOPIC Auto-Detection** - Embedding similarity-based edge creation
+12. ✅ **Matryoshka Embeddings** - 50-75% storage reduction, 2-6x speed improvement
 
 ### High Priority (Phase 2.0 - Next Quarter)
 
