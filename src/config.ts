@@ -8,16 +8,24 @@ export interface Config {
     openai: {
         apiKey: string | undefined;
         embeddingModel: string;
+        dimensions?: number; // Optional: for matryoshka truncation
     };
     
     // Ollama Configuration
     ollama: {
         url: string;
         embeddingModel: string;
+        dimensions?: number; // Optional: for matryoshka truncation
     };
     
     // Embedding Service
     embeddingService: 'mock' | 'openai' | 'ollama';
+    
+    // Matryoshka Embeddings Configuration
+    matryoshka: {
+        enabled: boolean;
+        targetDimensions: number;
+    };
     
     // API Configuration
     api: {
@@ -32,18 +40,29 @@ export interface Config {
     };
 }
 
+// Parse matryoshka config
+const matryoshkaEnabled = process.env.MATRYOSHKA_ENABLED === 'true';
+const matryoshkaDims = parseInt(process.env.MATRYOSHKA_DIMENSIONS || '768', 10);
+
 export const config: Config = {
     openai: {
         apiKey: process.env.OPENAI_API_KEY,
-        embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small'
+        embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
+        dimensions: process.env.OPENAI_DIMENSIONS ? parseInt(process.env.OPENAI_DIMENSIONS, 10) : undefined
     },
     
     ollama: {
         url: process.env.OLLAMA_URL || 'http://localhost:11434',
-        embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text'
+        embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text',
+        dimensions: process.env.OLLAMA_DIMENSIONS ? parseInt(process.env.OLLAMA_DIMENSIONS, 10) : undefined
     },
     
     embeddingService: (process.env.EMBEDDING_SERVICE as 'mock' | 'openai' | 'ollama') || 'mock',
+    
+    matryoshka: {
+        enabled: matryoshkaEnabled,
+        targetDimensions: matryoshkaDims
+    },
     
     api: {
         port: parseInt(process.env.API_PORT || '3000', 10),
@@ -72,6 +91,15 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
         }
         if (!config.ollama.embeddingModel) {
             errors.push('OLLAMA_EMBEDDING_MODEL is required when using Ollama embeddings');
+        }
+    }
+    
+    if (config.matryoshka.enabled) {
+        if (config.matryoshka.targetDimensions < 64) {
+            errors.push('MATRYOSHKA_DIMENSIONS must be at least 64');
+        }
+        if (config.matryoshka.targetDimensions > 2048) {
+            errors.push('MATRYOSHKA_DIMENSIONS must be at most 2048');
         }
     }
     

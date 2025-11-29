@@ -11,6 +11,8 @@ This document tracks planned improvements and feature requests for the Hierarchi
 - [x] Vector embeddings (SQLite + sqlite-vec)
 - [x] Mock embeddings (deterministic, for testing)
 - [x] OpenAI embeddings integration with batch processing
+- [x] Ollama embeddings integration (local AI)
+- [x] Matryoshka embeddings support (storage optimization)
 - [x] Change detection and incremental sync (SHA-256 hashing)
 - [x] Markdown parser (H1/H2/H3 hierarchy)
 

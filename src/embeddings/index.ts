@@ -2,41 +2,62 @@ import { config } from '../config.js';
 import { generateMockEmbedding } from './mockEmbeddings.js';
 import { generateOpenAIEmbedding, generateOpenAIEmbeddingsBatch } from './openaiEmbeddings.js';
 import { generateOllamaEmbedding, generateOllamaEmbeddingsBatch } from './ollamaEmbeddings.js';
+import { applyMatryoshka } from './matryoshka.js';
 
 /**
  * Generate embedding for a single text using the configured service
  * @param text - Text to embed
- * @returns Embedding vector
+ * @returns Embedding vector (possibly truncated if matryoshka is enabled)
  */
 export async function embed(text: string): Promise<number[]> {
+    let embedding: number[];
+    
     switch (config.embeddingService) {
         case 'openai':
-            return generateOpenAIEmbedding(text);
+            embedding = await generateOpenAIEmbedding(text);
+            break;
         case 'ollama':
-            return generateOllamaEmbedding(text);
+            embedding = await generateOllamaEmbedding(text);
+            break;
         case 'mock':
         default:
-            return generateMockEmbedding(text);
+            embedding = await generateMockEmbedding(text);
+            break;
     }
+    
+    // Apply matryoshka truncation if enabled
+    return applyMatryoshka(embedding);
 }
 
 /**
  * Generate embeddings for multiple texts in batch
  * Note: Mock service processes one at a time, OpenAI can batch process
  * @param texts - Array of texts to embed
- * @returns Array of embedding vectors
+ * @returns Array of embedding vectors (possibly truncated if matryoshka is enabled)
  */
 export async function embedBatch(texts: string[]): Promise<number[][]> {
+    let embeddings: number[][];
+    
     switch (config.embeddingService) {
         case 'openai':
-            return generateOpenAIEmbeddingsBatch(texts);
+            embeddings = await generateOpenAIEmbeddingsBatch(texts);
+            break;
         case 'ollama':
-            return generateOllamaEmbeddingsBatch(texts);
+            embeddings = await generateOllamaEmbeddingsBatch(texts);
+            break;
         case 'mock':
         default:
             // Mock service doesn't have batch optimization, process sequentially
-            return Promise.all(texts.map(text => generateMockEmbedding(text)));
+            embeddings = await Promise.all(texts.map(text => generateMockEmbedding(text)));
+            break;
     }
+    
+    // Apply matryoshka truncation if enabled
+    if (config.matryoshka.enabled) {
+        return embeddings.map(emb => applyMatryoshka(emb));
+    }
+    
+    return embeddings;
 }
 
 /**
@@ -44,37 +65,49 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
  */
 export function getEmbeddingServiceInfo() {
     let model: string;
-    let dimensions: number;
+    let originalDimensions: number;
+    let effectiveDimensions: number;
 
     switch (config.embeddingService) {
         case 'openai':
             model = config.openai.embeddingModel;
-            dimensions = 1536; // OpenAI embedding dimensions
+            originalDimensions = config.openai.dimensions || 1536; // OpenAI embedding dimensions
             break;
         case 'ollama':
             model = config.ollama.embeddingModel;
             // Common Ollama embedding models and their dimensions
             if (model.includes('nomic-embed-text')) {
-                dimensions = 768;
+                originalDimensions = config.ollama.dimensions || 768;
             } else if (model.includes('mxbai-embed-large')) {
-                dimensions = 1024;
+                originalDimensions = config.ollama.dimensions || 1024;
             } else if (model.includes('all-minilm')) {
-                dimensions = 384;
+                originalDimensions = config.ollama.dimensions || 384;
             } else {
-                dimensions = 768; // Default for unknown models
+                originalDimensions = config.ollama.dimensions || 768; // Default for unknown models
             }
             break;
         case 'mock':
         default:
             model = 'mock-deterministic';
-            dimensions = 1536;
+            originalDimensions = 1536;
             break;
     }
+
+    // Apply matryoshka truncation to get effective dimensions
+    effectiveDimensions = config.matryoshka.enabled 
+        ? Math.min(config.matryoshka.targetDimensions, originalDimensions)
+        : originalDimensions;
 
     return {
         service: config.embeddingService,
         model,
-        dimensions,
+        dimensions: effectiveDimensions,
+        originalDimensions: config.matryoshka.enabled ? originalDimensions : undefined,
+        matryoshka: config.matryoshka.enabled ? {
+            enabled: true,
+            targetDimensions: config.matryoshka.targetDimensions,
+            truncated: effectiveDimensions < originalDimensions
+        } : undefined,
         url: config.embeddingService === 'ollama' ? config.ollama.url : undefined
     };
 }

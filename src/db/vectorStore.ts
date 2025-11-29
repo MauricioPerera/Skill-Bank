@@ -9,6 +9,7 @@ export interface SectionRow {
   is_leaf: number; // 0 or 1
   path: string; // JSON string
   hash?: string; // Content hash for change detection
+  dimensions?: number; // Actual embedding dimensions (for matryoshka support)
 }
 
 export interface SearchResult {
@@ -50,7 +51,9 @@ export function getVectorDb() {
   sqliteVec.load(dbInstance);
 
   // Initialize tables
-  // Added hash column
+  // Added hash and dimensions columns
+  // Note: vec_sections uses FLOAT[2048] to support various embedding dimensions
+  // Actual dimensions are stored in sections.dimensions column
   dbInstance.exec(`
     CREATE TABLE IF NOT EXISTS sections (
       rowid      INTEGER PRIMARY KEY,
@@ -61,22 +64,30 @@ export function getVectorDb() {
       is_leaf    INTEGER NOT NULL,
       path       TEXT,
       hash       TEXT,
+      dimensions INTEGER,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
     CREATE VIRTUAL TABLE IF NOT EXISTS vec_sections USING vec0(
       rowid INTEGER PRIMARY KEY,
-      embedding FLOAT[1536]
+      embedding FLOAT[2048]
     );
   `);
 
-  // Migration check (simplistic for this demo)
+  // Migration checks (simplistic for this demo)
   try {
     dbInstance.prepare('SELECT hash FROM sections LIMIT 1').get();
   } catch (e) {
     console.log('Migrating: Adding hash column to sections table...');
     dbInstance.exec('ALTER TABLE sections ADD COLUMN hash TEXT');
+  }
+
+  try {
+    dbInstance.prepare('SELECT dimensions FROM sections LIMIT 1').get();
+  } catch (e) {
+    console.log('Migrating: Adding dimensions column to sections table...');
+    dbInstance.exec('ALTER TABLE sections ADD COLUMN dimensions INTEGER');
   }
 
   return dbInstance;
@@ -88,9 +99,13 @@ export function upsertSection(
 ) {
   const db = getVectorDb();
 
+  // Store actual dimensions
+  const actualDimensions = embedding.length;
+  const metaWithDims = { ...meta, dimensions: actualDimensions };
+
   const insertMeta = db.prepare(`
-    INSERT OR REPLACE INTO sections (node_id, doc_id, level, title, is_leaf, path, hash)
-    VALUES (@node_id, @doc_id, @level, @title, @is_leaf, @path, @hash)
+    INSERT OR REPLACE INTO sections (node_id, doc_id, level, title, is_leaf, path, hash, dimensions)
+    VALUES (@node_id, @doc_id, @level, @title, @is_leaf, @path, @hash, @dimensions)
   `);
 
   const insertVec = db.prepare(`
@@ -99,16 +114,38 @@ export function upsertSection(
   `);
 
   const transaction = db.transaction(() => {
-    const info = insertMeta.run(meta);
+    const info = insertMeta.run(metaWithDims);
     const rowid = info.lastInsertRowid;
 
-    const buffer = Buffer.from(new Float32Array(embedding).buffer);
+    // Pad embedding to 2048 dimensions if needed (sqlite-vec table is FLOAT[2048])
+    const paddedEmbedding = padEmbedding(embedding, 2048);
+    const buffer = Buffer.from(new Float32Array(paddedEmbedding).buffer);
 
     // Explicitly pass rowid as BigInt to satisfy sqlite-vec if it requires it
     insertVec.run(BigInt(rowid), buffer);
   });
 
   transaction();
+}
+
+/**
+ * Pad embedding to target dimensions with zeros
+ * @param embedding - Original embedding
+ * @param targetDims - Target dimensions
+ * @returns Padded embedding
+ */
+function padEmbedding(embedding: number[], targetDims: number): number[] {
+  if (embedding.length >= targetDims) {
+    return embedding.slice(0, targetDims);
+  }
+  
+  // Pad with zeros
+  const padded = new Array(targetDims).fill(0);
+  for (let i = 0; i < embedding.length; i++) {
+    padded[i] = embedding[i];
+  }
+  
+  return padded;
 }
 
 export function getSectionMeta(nodeId: string): SectionRow | undefined {
@@ -148,7 +185,9 @@ export interface SearchFilters {
 export function searchKnn(queryEmbedding: number[], k: number = 5, filters: SearchFilters = {}): SearchResult[] {
   const db = getVectorDb();
 
-  const buffer = Buffer.from(new Float32Array(queryEmbedding).buffer);
+  // Pad query embedding to match table dimensions (2048)
+  const paddedEmbedding = padEmbedding(queryEmbedding, 2048);
+  const buffer = Buffer.from(new Float32Array(paddedEmbedding).buffer);
 
   // Over-fetch from vector index to allow for filtering
   // If we want k results after filtering, we need to ask the vector index for more candidates.
