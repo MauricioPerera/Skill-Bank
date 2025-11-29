@@ -4,6 +4,7 @@ import { answer, queryWithGraph, type GraphRagConfig } from '../../ragEngine.js'
 import { searchKnn, SearchFilters } from '../../db/vectorStore.js';
 import { embed } from '../../embeddings.js';
 import { type EdgeType } from '../../db/graphStore.js';
+import { graphRagQuery, smartGraphQuery, classicRagQuery } from '../../graph/graphRagEngine.js';
 
 export const queryRouter = Router();
 
@@ -193,6 +194,101 @@ queryRouter.post('/graph', async (req: Request, res: Response) => {
         console.error('Error processing graph query:', error);
         res.status(500).json({
             error: 'Failed to process graph query',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * POST /api/query/smart
+ * Smart graph-aware query with sensible defaults
+ * 
+ * This is the recommended endpoint for production use.
+ * It uses hybrid RAG: vector search + graph expansion.
+ * 
+ * Body:
+ * {
+ *   "query": "What is deep learning?",
+ *   "k": 3,                      // Number of seeds
+ *   "useGraph": true,             // Enable graph expansion
+ *   "maxHops": 1,                 // Graph hops (1-2 recommended)
+ *   "maxNodes": 10,               // Max total nodes
+ *   "edgeTypes": ["SAME_TOPIC"],  // Edge types to follow
+ *   "minWeight": 0.75             // Min edge weight for SAME_TOPIC
+ * }
+ */
+queryRouter.post('/smart', async (req: Request, res: Response) => {
+    try {
+        const { 
+            query, 
+            k = 3, 
+            useGraph = true,
+            maxHops = 1,
+            maxNodes = 10,
+            edgeTypes = ['SAME_TOPIC', 'PARENT_OF', 'CHILD_OF'],
+            minWeight = 0.75
+        } = req.body;
+        
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({
+                error: 'Validation error',
+                message: 'query is required and must be a string'
+            });
+        }
+        
+        // Use the new graph RAG engine
+        const result = await graphRagQuery(query, {
+            k,
+            expandGraph: useGraph,
+            graphConfig: useGraph ? {
+                maxHops,
+                maxNodes,
+                edgeTypes: edgeTypes as EdgeType[],
+                minWeight
+            } : undefined,
+            includeContext: true
+        });
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('Error processing smart query:', error);
+        res.status(500).json({
+            error: 'Failed to process smart query',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * POST /api/query/classic
+ * Classic RAG without graph expansion (baseline)
+ * 
+ * Body:
+ * {
+ *   "query": "What is deep learning?",
+ *   "k": 3
+ * }
+ */
+queryRouter.post('/classic', async (req: Request, res: Response) => {
+    try {
+        const { query, k = 3 } = req.body;
+        
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({
+                error: 'Validation error',
+                message: 'query is required and must be a string'
+            });
+        }
+        
+        const result = await classicRagQuery(query, k);
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('Error processing classic query:', error);
+        res.status(500).json({
+            error: 'Failed to process classic query',
             message: error instanceof Error ? error.message : 'Unknown error'
         });
     }

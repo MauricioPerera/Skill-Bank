@@ -86,6 +86,8 @@ export async function answer(query: string): Promise<RagResult> {
  * 1. Vector search → seed nodes
  * 2. Graph expansion → related nodes
  * 3. Combine contexts
+ * 
+ * @deprecated Use graphRagQuery from graphRagEngine.ts for full features
  */
 export async function queryWithGraph(
     query: string,
@@ -94,7 +96,7 @@ export async function queryWithGraph(
 ): Promise<RagResult> {
     // Default graph config
     const config: GraphRagConfig = {
-        useGraph: true,
+        useGraph: graphConfig?.useGraph !== undefined ? graphConfig.useGraph : true,
         maxHops: 1,
         maxGraphNodes: 10,
         edgeTypes: ['SAME_TOPIC', 'PARENT_OF', 'CHILD_OF'],

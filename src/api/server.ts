@@ -91,6 +91,8 @@ export async function startServer(): Promise<void> {
         console.log(`   - GET  http://${host}:${port}/health`);
         console.log(`   - POST http://${host}:${port}/api/index`);
         console.log(`   - POST http://${host}:${port}/api/query`);
+        console.log(`   - POST http://${host}:${port}/api/query/smart ⭐ (graph-aware RAG)`);
+        console.log(`   - POST http://${host}:${port}/api/query/classic (baseline)`);
         console.log(`   - GET  http://${host}:${port}/api/docs/:docId`);
         console.log(`   - GET  http://${host}:${port}/api/graph/stats`);
         console.log(`   - POST http://${host}:${port}/api/graph/build/same-topic`);
