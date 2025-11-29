@@ -231,8 +231,8 @@ describe('indexer', () => {
             await saveDocument(doc);
             await syncDocument(doc);
 
-            // Small delay to ensure DB writes complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Larger delay to ensure DB writes complete (Windows file locking)
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             let meta = getSectionMeta('to-delete');
             expect(meta).toBeDefined();

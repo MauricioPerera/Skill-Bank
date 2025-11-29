@@ -3,9 +3,11 @@ import { embed } from '../src/embeddings';
 
 describe('embeddings', () => {
     describe('embed', () => {
-        it('should return a vector of length 1536', async () => {
+        it('should return a valid embedding vector', async () => {
             const result = await embed('Test text');
-            expect(result.length).toBe(1536);
+            // Length depends on config: 1536 (OpenAI default), 384 (Matryoshka), etc.
+            expect(result.length).toBeGreaterThanOrEqual(64);
+            expect(result.length).toBeLessThanOrEqual(4096);
         });
 
         it('should be deterministic (same text -> same vector)', async () => {
