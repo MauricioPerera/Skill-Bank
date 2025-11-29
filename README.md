@@ -887,20 +887,20 @@ See [ROADMAP.md](ROADMAP.md) for detailed feature plans and timeline.
 
 ### Recently Completed ✅
 
-**Production Middleware:**
+**Production Features:**
 1.  ✅ **API Key Authentication** - Enable via `API_KEYS` env var
 2.  ✅ **Rate Limiting** - 60 req/min default, configurable
-3.  ✅ **Request Validation** - Input validation and sanitization
-4.  ✅ **Status Endpoint** - `/api/status` for monitoring
+3.  ✅ **Query Caching** - LRU cache with TTL, 3 separate caches
+4.  ✅ **Hybrid Search** - BM25 + Vector for better retrieval
+5.  ✅ **Monitoring Dashboard** - `/api/monitoring/dashboard`
 
-**Web UI - Knowledge Graph Explorer:**
-5.  ✅ **Visual Interface** - Modern dark theme with search, NER, and stats
-6.  ✅ **Real-time Search** - Smart/Classic query toggle with graph options
-7.  ✅ **Entity Extraction UI** - Interactive NER with entity highlighting
+**Web UI & API:**
+6.  ✅ **Visual Interface** - Modern dark theme Knowledge Graph Explorer
+7.  ✅ **Monitoring Endpoints** - Metrics, health checks, system info
 
-**Phase 3.0 - Entities & Concepts:**
-8.  ✅ **Named Entity Recognition (NER)** - Extract technologies, concepts, code refs
-9.  ✅ **MENTIONS/DEFINES Edges** - Link sections to concepts
+**Knowledge Graph:**
+8.  ✅ **Named Entity Recognition (NER)** - 7 entity types extracted
+9.  ✅ **Graph-Aware RAG** - Multi-hop with reranking
 
 **Phase 2.0 - Advanced Graph:**
 5.  ✅ **REFERS_TO Detection** - Automatic edge creation from markdown/wiki links

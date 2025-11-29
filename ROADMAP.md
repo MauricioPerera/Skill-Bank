@@ -83,8 +83,9 @@ hereltical-rag has evolved from a pure hierarchical system to a **knowledge grap
 - [x] Authentication (API keys) ✅
 - [x] Rate limiting (in-memory) ✅
 - [x] Request validation ✅
-- [ ] Query caching (Redis)
-- [ ] Monitoring dashboard
+- [x] Query caching (in-memory with LRU) ✅
+- [x] Hybrid search (BM25 + Vector) ✅
+- [x] Monitoring dashboard ✅
 
 **Medium Priority (Quality Improvements):**
 - [x] **Graph Evolution (Phase 1.5)** - Basic graph infrastructure ✨ NEW
