@@ -41,6 +41,27 @@ This script will:
 3.  Perform a hierarchical search (Topic -> Detail).
 4.  Demonstrate the sync logic by modifying, adding, and deleting nodes.
 
+## Testing
+
+Run the comprehensive test suite:
+
+```bash
+npm test
+```
+
+The test suite includes:
+-   **Embeddings**: 4 tests for deterministic mock embeddings
+-   **Vector Store**: 9 tests covering CRUD operations, KNN search, and filtering
+-   **JSON Store**: 8 tests for document management and tree navigation
+-   **Indexer**: 4 tests for sync logic (change detection, updates, deletions)
+
+**Total: 17 tests** covering all core functionality.
+
+For watch mode during development:
+```bash
+npm run test:watch
+```
+
 ## Architecture
 
 ### Core Modules
