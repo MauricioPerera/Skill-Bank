@@ -80,9 +80,10 @@ hereltical-rag has evolved from a pure hierarchical system to a **knowledge grap
 ### What's NOT Yet Implemented
 
 **High Priority (Needed for Production):**
-- [ ] Authentication & authorization
-- [ ] Rate limiting
-- [ ] Query caching
+- [x] Authentication (API keys) ✅
+- [x] Rate limiting (in-memory) ✅
+- [x] Request validation ✅
+- [ ] Query caching (Redis)
 - [ ] Monitoring dashboard
 
 **Medium Priority (Quality Improvements):**

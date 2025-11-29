@@ -887,17 +887,20 @@ See [ROADMAP.md](ROADMAP.md) for detailed feature plans and timeline.
 
 ### Recently Completed ✅
 
+**Production Middleware:**
+1.  ✅ **API Key Authentication** - Enable via `API_KEYS` env var
+2.  ✅ **Rate Limiting** - 60 req/min default, configurable
+3.  ✅ **Request Validation** - Input validation and sanitization
+4.  ✅ **Status Endpoint** - `/api/status` for monitoring
+
 **Web UI - Knowledge Graph Explorer:**
-1.  ✅ **Visual Interface** - Modern dark theme with search, NER, and stats
-2.  ✅ **Real-time Search** - Smart/Classic query toggle with graph options
-3.  ✅ **Entity Extraction UI** - Interactive NER with entity highlighting
-4.  ✅ **Graph Statistics** - Live stats and edge type breakdown
+5.  ✅ **Visual Interface** - Modern dark theme with search, NER, and stats
+6.  ✅ **Real-time Search** - Smart/Classic query toggle with graph options
+7.  ✅ **Entity Extraction UI** - Interactive NER with entity highlighting
 
 **Phase 3.0 - Entities & Concepts:**
-5.  ✅ **Named Entity Recognition (NER)** - Extract technologies, concepts, code refs, acronyms
-6.  ✅ **Concept Extraction** - Pattern-based extraction (no ML dependencies)
-7.  ✅ **MENTIONS/DEFINES Edges** - Link sections to concepts they mention or define
-8.  ✅ **Concept Co-occurrence** - RELATED_TO edges between co-occurring concepts
+8.  ✅ **Named Entity Recognition (NER)** - Extract technologies, concepts, code refs
+9.  ✅ **MENTIONS/DEFINES Edges** - Link sections to concepts
 
 **Phase 2.0 - Advanced Graph:**
 5.  ✅ **REFERS_TO Detection** - Automatic edge creation from markdown/wiki links
