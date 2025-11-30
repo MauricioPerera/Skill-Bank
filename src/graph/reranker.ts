@@ -55,7 +55,7 @@ export const DEFAULT_RERANKER_CONFIG: RerankerConfig = {
   },
   seedBoost: 1.2,           // Seeds get 20% boost
   hopDecay: 0.85,           // Each hop loses 15%
-  minScore: 0.1,            // Filter very low scores
+  minScore: 0.01,           // Filter very low scores (lowered for L2 distance)
   strategy: 'multiplicative'
 };
 
@@ -121,7 +121,9 @@ export function rerankSources(
     const edgeWeight = source.edgeWeight;
     
     // Calculate components
-    const vectorComponent = 1 - source.score; // Convert distance to similarity
+    // Convert distance to similarity: use 1/(1+d) which gives values in (0, 1]
+    // For sqlite-vec L2 distance, lower = better, so we invert
+    const vectorComponent = 1 / (1 + source.score);
     const edgeComponent = calculateEdgeScore(edgeType, edgeWeight, finalConfig);
     const hopComponent = calculateHopScore(hopDistance, finalConfig);
     
