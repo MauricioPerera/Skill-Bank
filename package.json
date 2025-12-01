@@ -17,6 +17,7 @@
     "demo:rag": "tsx examples/demo-rag-integration.ts",
     "demo:complete": "tsx examples/demo-complete-mvp.ts",
     "demo:memory": "tsx examples/demo-memory-learning.ts",
+    "demo:credentials": "tsx examples/demo-credentials.ts",
     "index:demo-docs": "tsx examples/index-demo-docs.ts",
     "validate:context-aware": "tsx examples/validate-context-aware-skills.ts"
   },
