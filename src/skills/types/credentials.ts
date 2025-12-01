@@ -1,8 +1,9 @@
 /**
- * Credential types and interfaces for Skill Bank v2.0
+ * Credential types and interfaces for Skill Bank v2.5
  * 
  * Provides secure credential storage with:
  * - AES-256-GCM encryption at rest
+ * - Multi-KDF support (PBKDF2, Argon2id)
  * - Scoped access control per skill/tool
  * - Complete audit trail
  * - Key rotation support
@@ -40,6 +41,64 @@ export type EntityType = 'skill' | 'tool';
  * Credential status
  */
 export type CredentialStatus = 'active' | 'rotated' | 'revoked';
+
+// ============================================
+// KDF (Key Derivation Function) Types - v2.5
+// ============================================
+
+/**
+ * Supported Key Derivation Functions
+ * 
+ * - pbkdf2: Legacy KDF (v2.0), good compatibility
+ * - argon2id: Modern KDF (v2.5+), GPU-resistant
+ */
+export type KDFType = 'pbkdf2' | 'argon2id';
+
+/**
+ * KDF parameters for different algorithms
+ */
+export interface KDFParameters {
+  // PBKDF2 parameters
+  iterations?: number;          // Number of iterations (default: 100000)
+  hash?: 'sha256' | 'sha512';   // Hash algorithm (default: sha256)
+  
+  // Argon2 parameters
+  memoryCost?: number;          // Memory in KiB (default: 65536 = 64MB)
+  timeCost?: number;            // Number of iterations (default: 3)
+  parallelism?: number;         // Degree of parallelism (default: 4)
+}
+
+/**
+ * KDF configuration
+ */
+export interface KDFConfig {
+  type: KDFType;
+  parameters: KDFParameters;
+  version: string;
+}
+
+/**
+ * Default KDF configurations
+ */
+export const DEFAULT_KDF_CONFIGS: Record<KDFType, KDFConfig> = {
+  pbkdf2: {
+    type: 'pbkdf2',
+    parameters: {
+      iterations: 100000,
+      hash: 'sha256'
+    },
+    version: '1.0'
+  },
+  argon2id: {
+    type: 'argon2id',
+    parameters: {
+      memoryCost: 65536,    // 64 MB
+      timeCost: 3,          // 3 iterations
+      parallelism: 4        // 4 threads
+    },
+    version: '1.3'
+  }
+};
 
 /**
  * Audit actions
@@ -229,6 +288,11 @@ export interface EncryptedData {
   iv: string;                       // Base64 initialization vector
   authTag: string;                  // Base64 authentication tag
   salt: string;                     // Base64 salt for key derivation
+  
+  // v2.5: KDF metadata
+  kdfType?: KDFType;                // KDF algorithm used (default: pbkdf2 for legacy)
+  kdfParameters?: KDFParameters;    // KDF-specific parameters
+  kdfVersion?: string;              // KDF implementation version
 }
 
 /**
