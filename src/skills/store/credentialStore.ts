@@ -18,6 +18,7 @@ import {
   generateKeyId,
   hashKey
 } from '../security/encryption.js';
+import { assertAccess } from '../security/accessControl.js';
 import {
   Credential,
   DecryptedCredential,
@@ -25,7 +26,10 @@ import {
   CredentialValue,
   Environment,
   CredentialStatus,
+  EntityType,
+  AccessLevel,
   StoreCredentialOptions,
+  RetrieveCredentialOptions,
   CredentialFilters,
   CredentialNotFoundError,
   EncryptionError
@@ -267,13 +271,67 @@ export function getCredentialMetadata(credentialId: string): Omit<Credential, 'e
 /**
  * Retrieve and decrypt a credential
  * 
- * Note: In Week 2, this will check access policies.
- * For now, it returns the decrypted value directly.
+ * Checks access policies before returning the decrypted value.
+ * 
+ * @param credentialId - Credential ID
+ * @param requestingEntityId - ID of the skill/tool requesting access
+ * @param requestingEntityType - Type of entity ('skill' or 'tool')
+ * @param options - Optional retrieval options
+ * @returns Decrypted credential
+ * @throws AccessDeniedError if entity lacks access
+ * @throws CredentialNotFoundError if credential doesn't exist
+ */
+export function retrieveCredential(
+  credentialId: string,
+  requestingEntityId: string,
+  requestingEntityType: EntityType,
+  options: RetrieveCredentialOptions = {}
+): DecryptedCredential {
+  const db = getDb();
+  
+  // Check access policy (throws if denied)
+  assertAccess(credentialId, requestingEntityId, requestingEntityType, 'read');
+  
+  const row = db.prepare(`
+    SELECT id, name, type, service, encrypted_value,
+           metadata, environment
+    FROM credentials
+    WHERE id = ? AND status = 'active'
+  `).get(credentialId) as any;
+  
+  if (!row) {
+    throw new CredentialNotFoundError(
+      `Credential not found or not active: ${credentialId}`,
+      { credentialId }
+    );
+  }
+  
+  // Decrypt the value
+  const encryptedData = JSON.parse(row.encrypted_value);
+  const value = decryptCredential(encryptedData);
+  
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type as CredentialType,
+    service: row.service,
+    value,
+    metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+    environment: row.environment as Environment
+  };
+}
+
+/**
+ * Retrieve and decrypt a credential without access checks
+ * 
+ * WARNING: Use only for internal operations or admin access.
+ * Bypasses all access policies!
  * 
  * @param credentialId - Credential ID
  * @returns Decrypted credential
+ * @internal
  */
-export function retrieveCredential(credentialId: string): DecryptedCredential {
+export function retrieveCredentialUnchecked(credentialId: string): DecryptedCredential {
   const db = getDb();
   
   const row = db.prepare(`

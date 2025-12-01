@@ -12,6 +12,7 @@ import {
   storeCredential,
   getCredentialMetadata,
   retrieveCredential,
+  retrieveCredentialUnchecked,
   listCredentials,
   rotateCredential,
   revokeCredential,
@@ -20,12 +21,14 @@ import {
   getCredentialByName,
   countCredentials
 } from '../store/credentialStore.js';
+import { grantAccess } from '../security/accessControl.js';
 import { setDbPath, closeDb } from '../store/unifiedStore.js';
 import {
   ApiKeyCredential,
   OAuthCredential,
   DbConnectionCredential,
-  CredentialNotFoundError
+  CredentialNotFoundError,
+  AccessDeniedError
 } from '../types/credentials.js';
 
 describe('Credential Store', () => {
@@ -75,8 +78,11 @@ describe('Credential Store', () => {
       
       expect(id).toMatch(/^cred_\d+_[a-f0-9]{16}$/);
       
+      // Grant access to test skill
+      grantAccess(id, 'test_skill', 'skill');
+      
       // Retrieve and verify
-      const retrieved = retrieveCredential(id);
+      const retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.id).toBe(id);
       expect(retrieved.name).toBe('stripe_test');
       expect(retrieved.type).toBe('api_key');
@@ -94,7 +100,8 @@ describe('Credential Store', () => {
         environment: 'dev'
       });
       
-      const retrieved = retrieveCredential(id);
+      grantAccess(id, 'test_skill', 'skill');
+      const retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.environment).toBe('dev');
     });
     
@@ -248,9 +255,10 @@ describe('Credential Store', () => {
       const newValue: ApiKeyCredential = { apiKey: 'sk_new_value' };
       
       const id = storeCredential('test', 'api_key', 'service', oldValue);
+      grantAccess(id, 'test_skill', 'skill');
       
       // Verify old value
-      let retrieved = retrieveCredential(id);
+      let retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.value).toEqual(oldValue);
       
       // Rotate
@@ -258,7 +266,7 @@ describe('Credential Store', () => {
       expect(rotated).toBe(true);
       
       // Verify new value
-      retrieved = retrieveCredential(id);
+      retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.value).toEqual(newValue);
       
       // Verify metadata updated
@@ -281,15 +289,16 @@ describe('Credential Store', () => {
     it('should revoke credential', () => {
       const credential: ApiKeyCredential = { apiKey: 'sk_test' };
       const id = storeCredential('test', 'api_key', 'service', credential);
+      grantAccess(id, 'test_skill', 'skill');
       
       // Revoke
       const revoked = revokeCredential(id, 'Security breach');
       expect(revoked).toBe(true);
       
-      // Should not be retrievable anymore
+      // Should not be retrievable anymore (access denied because credential is revoked)
       expect(() => {
-        retrieveCredential(id);
-      }).toThrow(CredentialNotFoundError);
+        retrieveCredential(id, 'test_skill', 'skill');
+      }).toThrow(AccessDeniedError);
       
       // But metadata should still exist
       const metadata = getCredentialMetadata(id);
@@ -369,6 +378,43 @@ describe('Credential Store', () => {
   });
   
   // ============================================
+  // Access Control Integration
+  // ============================================
+  
+  describe('Access Control', () => {
+    it('should deny access without permission', () => {
+      const credential: ApiKeyCredential = { apiKey: 'sk_test' };
+      const id = storeCredential('test', 'api_key', 'service', credential);
+      
+      // Try to retrieve without granting access
+      expect(() => {
+        retrieveCredential(id, 'unauthorized_skill', 'skill');
+      }).toThrow(AccessDeniedError);
+    });
+    
+    it('should allow access after granting permission', () => {
+      const credential: ApiKeyCredential = { apiKey: 'sk_test' };
+      const id = storeCredential('test', 'api_key', 'service', credential);
+      
+      // Grant access
+      grantAccess(id, 'authorized_skill', 'skill');
+      
+      // Should now be able to retrieve
+      const retrieved = retrieveCredential(id, 'authorized_skill', 'skill');
+      expect(retrieved.value).toEqual(credential);
+    });
+    
+    it('should allow unchecked retrieval for admin operations', () => {
+      const credential: ApiKeyCredential = { apiKey: 'sk_test' };
+      const id = storeCredential('test', 'api_key', 'service', credential);
+      
+      // retrieveCredentialUnchecked bypasses access control
+      const retrieved = retrieveCredentialUnchecked(id);
+      expect(retrieved.value).toEqual(credential);
+    });
+  });
+  
+  // ============================================
   // Complex Credentials
   // ============================================
   
@@ -383,8 +429,9 @@ describe('Credential Store', () => {
       };
       
       const id = storeCredential('google_oauth', 'oauth_token', 'google', credential);
+      grantAccess(id, 'test_skill', 'skill');
       
-      const retrieved = retrieveCredential(id);
+      const retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.value).toEqual(credential);
       expect((retrieved.value as OAuthCredential).scopes).toEqual(['drive.readonly', 'gmail.send']);
     });
@@ -404,8 +451,9 @@ describe('Credential Store', () => {
       };
       
       const id = storeCredential('postgres_prod', 'db_connection', 'postgres', credential);
+      grantAccess(id, 'test_skill', 'skill');
       
-      const retrieved = retrieveCredential(id);
+      const retrieved = retrieveCredential(id, 'test_skill', 'skill');
       expect(retrieved.value).toEqual(credential);
       expect((retrieved.value as DbConnectionCredential).password).toBe('super_secret_password');
       expect((retrieved.value as DbConnectionCredential).options?.poolSize).toBe(10);
