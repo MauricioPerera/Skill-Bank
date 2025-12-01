@@ -1,331 +1,467 @@
-# Contributing to Hierarchical RAG
+# Contributing to Skill Bank
 
-Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
+First off, thanks for considering contributing to Skill Bank! 🎉
 
-## Getting Started
+This document provides guidelines for contributing to the project.
 
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/hereltical-rag.git
-   cd hereltical-rag
-   ```
-3. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-4. **Run tests** to ensure everything works:
-   ```bash
-   npm test
-   ```
+---
 
-## Development Workflow
+## 📋 Table of Contents
 
-### 1. Create a Branch
+- [Code of Conduct](#code-of-conduct)
+- [How Can I Contribute?](#how-can-i-contribute)
+- [Development Setup](#development-setup)
+- [Pull Request Process](#pull-request-process)
+- [Coding Standards](#coding-standards)
+- [Testing Requirements](#testing-requirements)
+- [Adding New Skills](#adding-new-skills)
+- [Adding New Tools](#adding-new-tools)
 
-Always create a new branch for your work:
+---
+
+## Code of Conduct
+
+This project adheres to a code of conduct. By participating, you are expected to uphold this code. Please be respectful and constructive in all interactions.
+
+---
+
+## How Can I Contribute?
+
+### 🐛 Reporting Bugs
+
+Before creating bug reports, please check existing issues to avoid duplicates.
+
+When creating a bug report, include:
+- **Clear title and description**
+- **Steps to reproduce**
+- **Expected vs actual behavior**
+- **Environment details** (OS, Node version, etc.)
+- **Code samples** if applicable
+
+### 💡 Suggesting Enhancements
+
+Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, include:
+- **Use case**: Why is this enhancement needed?
+- **Proposed solution**: How should it work?
+- **Alternatives considered**: What other approaches did you think about?
+
+### 🔧 Pull Requests
+
+We actively welcome pull requests for:
+- Bug fixes
+- New skills or tools
+- Documentation improvements
+- Performance improvements
+- Test coverage improvements
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+- **Node.js** >= 18.x (20.x recommended)
+- **npm** >= 9.x
+- **Git**
+
+### Installation
 
 ```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/bug-description
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/Skill-Bank.git
+cd Skill-Bank
+
+# Install dependencies
+npm install
+
+# Run tests to ensure everything works
+npm run test:skills
 ```
 
-**Branch naming conventions:**
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation updates
-- `refactor/` - Code refactoring
-- `test/` - Test additions/updates
-- `perf/` - Performance improvements
+### Project Structure
+
+```
+Skill-Bank/
+├── src/skills/           # Core Skill Bank code
+│   ├── executor/         # Execution engines
+│   ├── memory/           # Memory & Learning
+│   ├── store/            # Data persistence
+│   ├── types/            # TypeScript types
+│   └── __tests__/        # Test suites
+├── examples/             # Demo scripts
+├── data/                 # Skills, tools, documents
+│   ├── skills/           # Skill YAML files
+│   ├── tools/            # Tool YAML files
+│   └── docs/             # Example documents
+└── docs/                 # Documentation
+```
+
+---
+
+## Pull Request Process
+
+### 1. Fork & Create Branch
+
+```bash
+# Fork the repo on GitHub, then:
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
+```
 
 ### 2. Make Your Changes
 
-- Write clear, readable code
-- Follow existing code style
+- Follow the [coding standards](#coding-standards)
 - Add tests for new functionality
 - Update documentation as needed
 
 ### 3. Test Your Changes
 
 ```bash
-# Run all tests
-npm test
+# Run all critical tests (must pass)
+npm run test:skills
 
-# Run tests in watch mode
-npm run test:watch
+# If changing RAG functionality, run optional tests
+ENABLE_RAG_TESTS=true npm run test:skills
 
-# Check TypeScript compilation
-npx tsc --noEmit
-
-# Run the demo script
-npm start
+# Run demos to ensure they still work
+npm run demo:complete
+npm run demo:memory
 ```
 
-### 4. Commit Your Changes
+### 4. Commit
 
-Write clear, descriptive commit messages:
+Use clear, descriptive commit messages:
 
 ```bash
-git add .
-git commit -m "feat: add hybrid search capability"
+# Good examples:
+git commit -m "feat: add multi-value preference support"
+git commit -m "fix: prevent duplicate preference creation"
+git commit -m "docs: update Memory & Learning section"
+git commit -m "test: add edge cases for pattern detection"
+
+# Follow Conventional Commits format:
+# feat: new feature
+# fix: bug fix
+# docs: documentation
+# test: tests
+# refactor: code refactoring
+# perf: performance improvement
 ```
 
-**Commit message format:**
-```
-<type>: <subject>
-
-<body (optional)>
-
-<footer (optional)>
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting)
-- `refactor`: Code refactoring
-- `test`: Test additions/updates
-- `chore`: Build process or auxiliary tool changes
-
-**Examples:**
-```
-feat: add OpenAI embedding support
-
-- Implement OpenAI API integration
-- Add batch processing for efficiency
-- Update configuration system
-
-Closes #123
-```
-
-```
-fix: resolve SQLite lock issue on Windows
-
-Added delays to prevent concurrent access to database
-during test cleanup.
-
-Fixes #456
-```
-
-### 5. Push and Create Pull Request
+### 5. Push & Create PR
 
 ```bash
 git push origin feature/your-feature-name
 ```
 
-Then open a Pull Request on GitHub with:
-- Clear title describing the change
-- Description of what changed and why
-- Reference to related issues
-- Screenshots (if applicable)
+Then create a Pull Request on GitHub with:
+- **Clear title** following Conventional Commits
+- **Description** explaining what and why
+- **Testing details** showing tests pass
+- **Screenshots** if UI changes
 
-## Code Style
+### 6. Code Review
+
+- Address review feedback promptly
+- Keep PR scope focused (one feature/fix per PR)
+- Be responsive to questions
+
+---
+
+## Coding Standards
 
 ### TypeScript
 
-- Use **strict mode** (`"strict": true` in tsconfig.json)
-- Prefer **interfaces** over types for object shapes
-- Use **async/await** over callbacks
-- Document complex functions with JSDoc comments
+- **Strict mode**: All code must pass TypeScript strict checks
+- **ESM modules**: Use `import/export`, not `require`
+- **Types**: Avoid `any`, prefer explicit types
+- **Naming**:
+  - `camelCase` for variables and functions
+  - `PascalCase` for classes and types
+  - `UPPER_CASE` for constants
 
-**Example:**
+### Code Style
+
+```typescript
+// ✅ Good
+export async function executeSkill(
+  skillId: string,
+  input: Record<string, any>,
+  options?: ExecutionOptions
+): Promise<ExecutionResult> {
+  const startTime = Date.now();
+  
+  // Implementation
+  
+  return {
+    success: true,
+    output,
+    metadata: {
+      executionTime: Date.now() - startTime
+    }
+  };
+}
+
+// ❌ Bad
+export async function executeSkill(skillId:string,input:any,options?:any):Promise<any>{
+  let startTime=Date.now()
+  // Implementation
+  return {success:true,output:output,metadata:{executionTime:Date.now()-startTime}}
+}
+```
+
+### Documentation
+
+- **JSDoc comments** for public functions
+- **Inline comments** for complex logic
+- **README updates** for new features
+
+Example:
 ```typescript
 /**
- * Retrieves hierarchical context for a node
- * @param docId - Document identifier
- * @param nodeId - Node identifier
- * @returns Promise resolving to context string
+ * Apply user preferences to input parameters
+ * 
+ * Only fills parameters that are NOT explicitly provided by the user.
+ * Returns both the final parameters and metadata about what was applied.
+ * 
+ * @param userId - User identifier
+ * @param skillId - Skill identifier
+ * @param input - User-provided input parameters
+ * @param config - Learning configuration (optional)
+ * @returns Result with final parameters and applied preferences
  */
-export async function retrieveContext(
-  docId: string,
-  nodeId: string
-): Promise<string> {
+export function applyUserPreferences(
+  userId: string,
+  skillId: string,
+  input: Record<string, any>,
+  config?: PreferenceLearningConfig
+): PreferenceApplicationResult {
   // Implementation
 }
 ```
 
-### Formatting
+---
 
-We use the default TypeScript formatting. Before committing:
+## Testing Requirements
+
+### Critical Tests (Must Pass)
+
+All PRs must maintain 100% pass rate for critical tests:
 
 ```bash
-# Format code (if you have prettier configured)
-npx prettier --write "src/**/*.ts"
+npm run test:skills
 ```
 
-### Naming Conventions
-
-- **Files**: camelCase (e.g., `vectorStore.ts`)
-- **Classes**: PascalCase (e.g., `EmbeddingService`)
-- **Functions**: camelCase (e.g., `retrieveContext`)
-- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RESULTS`)
-- **Interfaces**: PascalCase (e.g., `SectionNode`)
-
-## Testing
+Expected output:
+```
+Test Files  6 passed | 1 skipped (7)
+Tests       128 passed | 16 skipped (144)
+```
 
 ### Writing Tests
 
-- Use **Vitest** for testing
-- Place tests in `tests/` directory
-- Name test files `*.test.ts`
-- Aim for high coverage of new code
+Follow existing test patterns in `src/skills/__tests__/`:
 
-**Example test:**
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { myFunction } from '../src/myModule.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-describe('myModule', () => {
-  describe('myFunction', () => {
-    it('should handle valid input', () => {
-      const result = myFunction('valid');
-      expect(result).toBe('expected');
-    });
+describe('My New Feature', () => {
+  beforeEach(() => {
+    // Setup
+  });
 
-    it('should throw on invalid input', () => {
-      expect(() => myFunction(null)).toThrow();
-    });
+  afterEach(() => {
+    // Cleanup
+  });
+
+  it('should do something specific', () => {
+    // Arrange
+    const input = { /* ... */ };
+
+    // Act
+    const result = myFunction(input);
+
+    // Assert
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
   });
 });
 ```
 
-### Test Guidelines
+### Test Coverage
 
-- **One assertion per test** when possible
-- **Descriptive test names** that explain what's being tested
-- **Clean up** resources in `afterEach`
-- **Isolate tests** - no dependencies between tests
-- **Mock external services** (e.g., OpenAI API)
+- **Unit tests**: For isolated functions
+- **Integration tests**: For component interactions
+- **E2E tests**: For complete flows
 
-## Documentation
-
-### Code Documentation
-
-- Add JSDoc comments to public APIs
-- Explain **why**, not just **what**
-- Include examples for complex functions
-- Document parameters and return types
-
-### README Updates
-
-When adding features, update:
-- Features list
-- Usage examples
-- API reference
-- Architecture diagrams (if applicable)
-
-### Changelog
-
-Add entries to `CHANGELOG.md` under "Unreleased" section:
-
-```markdown
-## [Unreleased]
-
-### Added
-- New hybrid search feature (#123)
-
-### Fixed
-- SQLite lock issue on Windows (#456)
-
-### Changed
-- Updated dependency versions
-```
-
-## Pull Request Process
-
-1. **Ensure all tests pass**: `npm test`
-2. **Update documentation**: README, JSDoc, etc.
-3. **Add changelog entry**: In CHANGELOG.md
-4. **Reference issues**: Use "Fixes #123" or "Closes #456"
-5. **Request review**: Tag relevant reviewers
-6. **Address feedback**: Respond to review comments
-7. **Squash commits** (optional): Clean up commit history
-
-### PR Review Checklist
-
-Reviewers will check:
-- [ ] Code follows style guidelines
-- [ ] Tests are included and passing
-- [ ] Documentation is updated
-- [ ] No unnecessary dependencies added
-- [ ] Breaking changes are documented
-- [ ] Performance impact considered
-- [ ] Security implications reviewed
-
-## Areas for Contribution
-
-### Good First Issues
-
-Look for issues tagged with `good-first-issue`:
-- Documentation improvements
-- Test coverage additions
-- Bug fixes with clear reproduction steps
-
-### High Impact Areas
-
-See [ROADMAP.md](ROADMAP.md) for planned features:
-- Hybrid search implementation
-- Authentication system
-- Web UI development
-- Performance optimizations
-- Multi-format support
-
-### Documentation
-
-Always welcome:
-- Fix typos and grammar
-- Add examples and tutorials
-- Improve API documentation
-- Create video walkthroughs
-- Translate documentation
-
-### Testing
-
-Help improve coverage:
-- Add edge case tests
-- Integration tests
-- Load/performance tests
-- Security tests
-
-## Code Review Guidelines
-
-### For Contributors
-
-- Be responsive to feedback
-- Keep PRs focused and small
-- Explain your reasoning
-- Be open to suggestions
-
-### For Reviewers
-
-- Be constructive and kind
-- Explain your suggestions
-- Approve when ready
-- Request changes when needed
-
-## Community Guidelines
-
-- **Be respectful**: Treat everyone with respect
-- **Be patient**: Remember that everyone was a beginner once
-- **Be collaborative**: We're all working towards the same goal
-- **Be open**: Share ideas and feedback openly
-
-## Getting Help
-
-- **Questions**: Open a GitHub Discussion
-- **Bug reports**: Open a GitHub Issue
-- **Feature requests**: Check ROADMAP.md, then open an Issue
-- **Chat**: Join our community (link TBD)
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the same MIT License that covers the project.
+Aim for:
+- New features: 80%+ coverage
+- Bug fixes: Test that reproduces the bug + fix
 
 ---
 
-**Thank you for contributing to Hierarchical RAG!** 🎉
+## Adding New Skills
 
-Every contribution, no matter how small, makes a difference.
+Skills are defined in YAML files in `data/skills/`.
 
+### 1. Create Skill YAML
+
+```yaml
+# data/skills/my_new_skill.yaml
+id: my_new_skill
+name: My New Skill
+type: skill
+category: productivity
+skillType: tool_based  # or: instructional, context_aware, hybrid
+overview: Brief description of what this skill does
+instructions: |
+  Detailed step-by-step instructions for executing this skill.
+  
+  1. First step
+  2. Second step
+  3. etc.
+
+usesTools:
+  - tool_id_1
+  - tool_id_2
+
+parameters:
+  - name: param1
+    type: string
+    required: true
+    description: Description of parameter
+
+outputs:
+  - name: result
+    type: object
+    description: What this skill returns
+
+examples:
+  - input:
+      param1: "example value"
+    output:
+      result: { success: true }
+    explanation: What this example demonstrates
+```
+
+### 2. Register the Skill
+
+```bash
+npx tsx src/cli/registerSkill.ts data/skills/my_new_skill.yaml
+```
+
+### 3. Add Tests
+
+```typescript
+// src/skills/__tests__/myNewSkill.test.ts
+import { describe, it, expect } from 'vitest';
+import { skillBank } from '../skillBank.js';
+
+describe('My New Skill', () => {
+  it('should be discoverable', async () => {
+    const result = await skillBank.discover({
+      query: 'do something specific',
+      mode: 'skills'
+    });
+
+    const found = result.skills.find(s => s.skill.id === 'my_new_skill');
+    expect(found).toBeDefined();
+  });
+
+  it('should execute successfully', async () => {
+    const result = await skillBank.execute({
+      targetId: 'my_new_skill',
+      targetType: 'skill',
+      input: { param1: 'test' }
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+```
+
+---
+
+## Adding New Tools
+
+Tools are atomic capabilities in `data/tools/`.
+
+### 1. Create Tool YAML
+
+```yaml
+# data/tools/my_new_tool.yaml
+id: my_new_tool
+name: My New Tool
+type: tool
+category: integration
+description: Brief description of what this tool does
+
+parameters:
+  - name: action
+    type: string
+    required: true
+    description: Action to perform
+
+outputs:
+  - name: result
+    type: any
+    description: Result of the action
+```
+
+### 2. Implement Executor
+
+```typescript
+// src/skills/executor/myNewToolExecutor.ts
+export async function executeMyNewTool(
+  action: string,
+  params: Record<string, any>
+): Promise<any> {
+  // Implementation
+  return { success: true, data: /* ... */ };
+}
+```
+
+### 3. Register the Tool
+
+```bash
+npx tsx src/cli/registerTool.ts data/tools/my_new_tool.yaml
+```
+
+### 4. Add Tests
+
+Similar to skills, add comprehensive tests.
+
+---
+
+## Documentation
+
+When adding features, update:
+
+- **README.md**: If user-facing
+- **Inline docs**: JSDoc comments
+- **Example scripts**: If applicable
+- **Type definitions**: If new types introduced
+
+---
+
+## Questions?
+
+- **GitHub Issues**: For bugs and feature requests
+- **GitHub Discussions**: For questions and ideas
+- **Pull Requests**: For code contributions
+
+---
+
+## Recognition
+
+Contributors will be recognized in:
+- GitHub contributors page
+- Release notes (for significant contributions)
+- Project documentation
+
+---
+
+**Thank you for contributing to Skill Bank!** 🎉
+
+Every contribution, no matter how small, makes this project better for everyone.

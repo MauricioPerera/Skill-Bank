@@ -18,6 +18,10 @@ export interface ExecutionRecord {
   executionTime: number;
   timestamp: string;
   error?: string;
+  // Memory & Learning (Fase 4)
+  userId?: string;           // User identifier for memory tracking
+  sessionId?: string;        // Optional session grouping
+  source?: string;           // Execution source (cli, api, ui, agent)
 }
 
 export interface ExecutionStats {
@@ -44,7 +48,10 @@ export function initExecutionStore(): void {
       success INTEGER NOT NULL,
       execution_time INTEGER NOT NULL,
       timestamp TEXT NOT NULL,
-      error TEXT
+      error TEXT,
+      user_id TEXT DEFAULT 'anonymous',
+      session_id TEXT,
+      source TEXT
     );
     
     CREATE INDEX IF NOT EXISTS idx_exec_history_skill 
@@ -55,6 +62,12 @@ export function initExecutionStore(): void {
     
     CREATE INDEX IF NOT EXISTS idx_exec_history_success 
       ON execution_history(success);
+    
+    CREATE INDEX IF NOT EXISTS idx_exec_history_user
+      ON execution_history(user_id);
+    
+    CREATE INDEX IF NOT EXISTS idx_exec_history_user_skill
+      ON execution_history(user_id, skill_id);
   `);
 }
 
@@ -80,8 +93,8 @@ export function logExecution(record: Omit<ExecutionRecord, 'id' | 'timestamp'>):
   const stmt = db.prepare(`
     INSERT INTO execution_history (
       id, skill_id, skill_type, input, output, success, 
-      execution_time, timestamp, error
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      execution_time, timestamp, error, user_id, session_id, source
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   stmt.run(
@@ -93,7 +106,10 @@ export function logExecution(record: Omit<ExecutionRecord, 'id' | 'timestamp'>):
     record.success ? 1 : 0,
     record.executionTime,
     timestamp,
-    record.error || null
+    record.error || null,
+    record.userId || 'anonymous',
+    record.sessionId || null,
+    record.source || null
   );
   
   return id;
@@ -141,6 +157,130 @@ export function getRecentExecutions(limit: number = 10): ExecutionRecord[] {
   const rows = stmt.all(limit) as any[];
   
   return rows.map(parseExecutionRecord);
+}
+
+/**
+ * Get execution history for a specific user
+ */
+export function getExecutionsByUser(
+  userId: string,
+  limit: number = 20
+): ExecutionRecord[] {
+  const db = getDb();
+  
+  // Ensure table exists
+  initExecutionStore();
+  
+  const stmt = db.prepare(`
+    SELECT * FROM execution_history
+    WHERE user_id = ?
+    ORDER BY timestamp DESC
+    LIMIT ?
+  `);
+  
+  const rows = stmt.all(userId, limit) as any[];
+  
+  return rows.map(parseExecutionRecord);
+}
+
+/**
+ * Get execution history for a specific user + skill
+ */
+export function getExecutionsByUserAndSkill(
+  userId: string,
+  skillId: string,
+  limit: number = 20
+): ExecutionRecord[] {
+  const db = getDb();
+  
+  // Ensure table exists
+  initExecutionStore();
+  
+  const stmt = db.prepare(`
+    SELECT * FROM execution_history
+    WHERE user_id = ? AND skill_id = ?
+    ORDER BY timestamp DESC
+    LIMIT ?
+  `);
+  
+  const rows = stmt.all(userId, skillId, limit) as any[];
+  
+  return rows.map(parseExecutionRecord);
+}
+
+/**
+ * Get statistics for a specific user
+ */
+export function getUserStats(userId: string): ExecutionStats {
+  const db = getDb();
+  
+  // Ensure table exists
+  initExecutionStore();
+  
+  // Total executions
+  const totalRow = db.prepare(`
+    SELECT COUNT(*) as count FROM execution_history
+    WHERE user_id = ?
+  `).get(userId) as { count: number };
+  
+  const total = totalRow.count;
+  
+  // By skill
+  const bySkillRows = db.prepare(`
+    SELECT skill_id, COUNT(*) as count
+    FROM execution_history
+    WHERE user_id = ?
+    GROUP BY skill_id
+    ORDER BY count DESC
+  `).all(userId) as { skill_id: string; count: number }[];
+  
+  const bySkill: Record<string, number> = {};
+  for (const row of bySkillRows) {
+    bySkill[row.skill_id] = row.count;
+  }
+  
+  // By type
+  const byTypeRows = db.prepare(`
+    SELECT skill_type, COUNT(*) as count
+    FROM execution_history
+    WHERE user_id = ?
+    GROUP BY skill_type
+  `).all(userId) as { skill_type: string; count: number }[];
+  
+  const byType: Record<string, number> = {};
+  for (const row of byTypeRows) {
+    byType[row.skill_type] = row.count;
+  }
+  
+  // Success rate
+  const successRow = db.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(success) as successful
+    FROM execution_history
+    WHERE user_id = ?
+  `).get(userId) as { total: number; successful: number };
+  
+  const successRate = successRow.total > 0 
+    ? successRow.successful / successRow.total 
+    : 0;
+  
+  // Average execution time
+  const avgTimeRow = db.prepare(`
+    SELECT AVG(execution_time) as avg_time
+    FROM execution_history
+    WHERE user_id = ?
+  `).get(userId) as { avg_time: number };
+  
+  const averageExecutionTime = avgTimeRow.avg_time || 0;
+  
+  return {
+    total,
+    bySkill,
+    byType,
+    successRate,
+    averageExecutionTime
+  };
 }
 
 /**
@@ -284,7 +424,10 @@ function parseExecutionRecord(row: any): ExecutionRecord {
     success: row.success === 1,
     executionTime: row.execution_time,
     timestamp: row.timestamp,
-    error: row.error || undefined
+    error: row.error || undefined,
+    userId: row.user_id || undefined,
+    sessionId: row.session_id || undefined,
+    source: row.source || undefined
   };
 }
 

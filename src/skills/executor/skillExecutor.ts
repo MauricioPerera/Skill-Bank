@@ -10,6 +10,9 @@ import { getSkill, getTool } from '../store/unifiedStore.js';
 import { toolExecutor } from './toolExecutor.js';
 import { queryRAGWithSkillConfig } from './ragIntegration.js';
 import { logExecution } from '../store/executionStore.js';
+import { applyUserPreferences } from '../memory/preferenceApplication.js';
+import { updatePreferencesFromExecution } from '../memory/patternLearning.js';
+import { ExecutionContext } from '../types/memory.js';
 
 /**
  * Ejecutor de skills
@@ -26,16 +29,45 @@ export class SkillExecutor {
   async execute(
     skillId: string,
     input: Record<string, any>,
-    options: { timeout?: number; retries?: number; dryRun?: boolean } = {}
+    options: { 
+      timeout?: number; 
+      retries?: number; 
+      dryRun?: boolean;
+      context?: ExecutionContext;  // Memory & Learning context
+    } = {}
   ): Promise<ExecutionResult> {
     const startTime = Date.now();
     const logs: ExecutionLog[] = [];
+    
+    // Extract user context (default to anonymous)
+    const userId = options.context?.userId || 'anonymous';
+    const sessionId = options.context?.sessionId;
+    const source = options.context?.source || 'api';
+    
+    // Apply user preferences if user is identified
+    let finalInput = input;
+    let appliedPreferences: string[] = [];
+    
+    if (userId !== 'anonymous') {
+      const preferenceResult = applyUserPreferences(userId, skillId, input);
+      finalInput = preferenceResult.finalParams;
+      appliedPreferences = preferenceResult.appliedPreferences.map(p => p.paramName);
+      
+      if (appliedPreferences.length > 0) {
+        logs.push({
+          level: 'info',
+          message: `Applied ${appliedPreferences.length} user preferences: ${appliedPreferences.join(', ')}`,
+          timestamp: new Date().toISOString(),
+          context: { appliedPreferences: preferenceResult.appliedPreferences }
+        });
+      }
+    }
     
     logs.push({
       level: 'info',
       message: `Executing skill: ${skillId}`,
       timestamp: new Date().toISOString(),
-      context: { input }
+      context: { input: finalInput, userId }
     });
     
     // Obtener skill definition
@@ -110,12 +142,31 @@ export class SkillExecutor {
           logExecution({
             skillId: skill.id,
             skillType: skill.skillType || 'context_aware',
-            input,
+            input: finalInput,
             output: result.output,
             success: true,
             executionTime: Date.now() - startTime,
-            timestamp: new Date().toISOString()
+            userId,
+            sessionId,
+            source
           });
+          
+          // Learn from execution (if user is identified)
+          if (userId !== 'anonymous') {
+            const learned = updatePreferencesFromExecution(
+              userId,
+              skill.id,
+              finalInput
+            );
+            
+            if (learned.length > 0) {
+              logs.push({
+                level: 'info',
+                message: `Learned ${learned.length} new preferences: ${learned.join(', ')}`,
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
         }
         
         return result;
@@ -231,12 +282,31 @@ export class SkillExecutor {
     logExecution({
       skillId: skill.id,
       skillType: skill.skillType || 'tool_based',
-      input,
+      input: finalInput,
       output: result.output,
       success: true,
       executionTime: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      userId,
+      sessionId,
+      source
     });
+    
+    // Learn from execution (if user is identified)
+    if (userId !== 'anonymous') {
+      const learned = updatePreferencesFromExecution(
+        userId,
+        skill.id,
+        finalInput
+      );
+      
+      if (learned.length > 0) {
+        logs.push({
+          level: 'info',
+          message: `Learned ${learned.length} new preferences: ${learned.join(', ')}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
     
     return result;
   }
