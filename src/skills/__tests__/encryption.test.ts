@@ -179,9 +179,7 @@ describe('Encryption Module', () => {
       // Try to decrypt with different key
       process.env.MASTER_ENCRYPTION_KEY = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
       
-      expect(() => {
-        decryptCredential(encrypted);
-      }).toThrow(DecryptionError);
+      await expect(decryptCredential(encrypted)).rejects.toThrow(DecryptionError);
     });
   });
   
@@ -197,9 +195,7 @@ describe('Encryption Module', () => {
         verifyMasterKey();
       }).toThrow(EncryptionError);
       
-      expect(() => {
-        encryptCredential({ apiKey: 'test' });
-      }).toThrow(EncryptionError);
+      await expect(encryptCredential({ apiKey: 'test' })).rejects.toThrow(EncryptionError);
     });
     
     it('should throw if master key is wrong length', () => {
