@@ -52,7 +52,7 @@ export const mockTools: Tool[] = [
           url: 'https://api.example.com/data',
           method: 'GET'
         },
-        output: {
+        expectedOutput: {
           status: 200,
           data: {}
         }
@@ -99,7 +99,7 @@ export const mockTools: Tool[] = [
           query: 'SELECT * FROM users WHERE id = ?',
           params: [1]
         },
-        output: {
+        expectedOutput: {
           rows: [{ id: 1, name: 'John' }],
           rowCount: 1
         }
@@ -153,7 +153,7 @@ export const mockTools: Tool[] = [
           path: '/tmp/test.txt',
           content: 'Hello world'
         },
-        output: {
+        expectedOutput: {
           success: true,
           bytesWritten: 11
         }
@@ -212,7 +212,7 @@ export const mockTools: Tool[] = [
           code: 'print(2 + 2)',
           language: 'python'
         },
-        output: {
+        expectedOutput: {
           result: null,
           stdout: '4\n',
           stderr: ''
@@ -273,7 +273,7 @@ export const mockTools: Tool[] = [
           subject: 'Test',
           body: 'Hello!'
         },
-        output: {
+        expectedOutput: {
           messageId: '<abc123@mail>',
           success: true
         }

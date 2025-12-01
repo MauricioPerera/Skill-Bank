@@ -24,17 +24,21 @@ export interface Tool {
   tags?: string[];
   
   // Schema de ejecucion
-  inputSchema: JSONSchema;       // Parametros que acepta
-  outputSchema: JSONSchema;      // Que retorna
+  inputSchema?: JSONSchema;      // Parametros que acepta
+  outputSchema?: JSONSchema;     // Que retorna
   
   // Implementacion
-  implementation: ToolImplementation;
+  implementation?: ToolImplementation;
   
   // Metadata
   examples?: ToolExample[];
   limitations?: string[];
   costPerCall?: number;          // Costo estimado (para tracking)
   version?: string;
+  
+  // Legacy support (deprecated)
+  parameters?: any[];
+  outputs?: any[];
 }
 
 /**
@@ -128,7 +132,8 @@ export interface ToolImplementation {
  * Ejemplo de uso de una tool
  */
 export interface ToolExample {
-  description: string;
+  name?: string;                 // Optional name for the example
+  description?: string;          // Optional description
   input: Record<string, any>;
   expectedOutput: any;
   notes?: string;
@@ -159,9 +164,10 @@ export interface SkillOutput {
  * Ejemplo de uso de una skill
  */
 export interface SkillExample {
-  situation: string;             // Contexto del caso de uso
+  name?: string;                 // Optional name for the example
+  situation?: string;            // Contexto del caso de uso (optional)
   input: Record<string, any>;
-  expectedOutput: string;
+  expectedOutput: any;           // Can be string or object
   notes?: string;
 }
 
@@ -289,6 +295,11 @@ export interface ExecutionResult {
     executionTime: number;       // ms
     timestamp: string;
   };
+  // Optional metadata for tracking
+  targetId?: string;             // ID of skill/tool executed
+  targetType?: 'skill' | 'tool'; // Type of target
+  dryRun?: boolean;              // Was this a dry run?
+  executedAt?: string;           // ISO timestamp of execution
 }
 
 export interface ExecutionLog {
@@ -332,6 +343,8 @@ export interface SearchFilters {
   category?: string;
   tags?: string[];
   usesTool?: string;             // Filtra skills que usan esta tool
+  doc_id?: string;               // Filter by document ID (for RAG)
+  level?: number;                // Filter by hierarchical level (for RAG)
 }
 
 /**

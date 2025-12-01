@@ -32,7 +32,7 @@ const DEFAULT_CONFIG: CacheConfig = {
   enabled: true
 };
 
-class QueryCache<T = any> {
+export class QueryCache<T = any> {
   private cache: Map<string, CacheEntry<T>> = new Map();
   private config: CacheConfig;
   private stats = {

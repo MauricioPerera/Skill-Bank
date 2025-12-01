@@ -45,12 +45,17 @@ describe('Memory & Learning - E2E Integration', () => {
       category: 'productivity',
       skillType: 'tool_based' as const,
       overview: 'Generates test reports',
-      instructions: 'Generate a report with the given format and recipients',
+      instructions: {
+        steps: ['Generate a report with the given format and recipients'],
+        prerequisites: [],
+        bestPractices: [],
+        antiPatterns: []
+      },
       usesTools: [],
       parameters: [
-        { name: 'format', type: 'string', required: false },
-        { name: 'recipients', type: 'string', required: false },
-        { name: 'dateRange', type: 'string', required: false }
+        { name: 'format', type: 'string', required: false, description: 'Report format' },
+        { name: 'recipients', type: 'string', required: false, description: 'Recipients' },
+        { name: 'dateRange', type: 'string', required: false, description: 'Date range' }
       ],
       outputs: [],
       examples: []

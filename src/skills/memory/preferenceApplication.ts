@@ -73,7 +73,13 @@ export function previewPreferences(
 } {
   const preferences = getPreferencesForUserAndSkill(userId, skillId);
   
-  const wouldApply: PreferenceApplicationResult['appliedPreferences'] & Array<{ currentValue: any; preferredValue: any }> = [];
+  const wouldApply: Array<{
+    paramName: string;
+    currentValue: any;
+    preferredValue: any;
+    value: any;
+    confidence: number;
+  }> = [];
   const alreadyProvided: string[] = [];
   
   for (const pref of preferences) {

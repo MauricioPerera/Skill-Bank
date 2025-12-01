@@ -101,7 +101,10 @@ export class SkillExecutor {
       try {
         const ragResults = await queryRAGWithSkillConfig(
           input.query || input.userQuery || '',
-          skill.ragIntegration
+          {
+            queryFilters: skill.ragIntegration?.filters,
+            contextExtraction: skill.ragIntegration?.strategy
+          }
         );
         
         logs.push({
@@ -127,7 +130,7 @@ export class SkillExecutor {
           toolsUsed: [],
           logs,
           targetId: skillId,
-          targetType: 'skill',
+          targetType: 'skill' as const,
           dryRun: options.dryRun,
           executedAt: new Date().toISOString(),
           metadata: {
@@ -270,7 +273,7 @@ export class SkillExecutor {
       toolsUsed: skill.usesTools,
       logs,
       targetId: skillId,
-      targetType: 'skill',
+      targetType: 'skill' as const,
       executedAt: new Date().toISOString(),
       metadata: {
         executionTime: Date.now() - startTime,

@@ -64,7 +64,7 @@ export const mockSkills: Skill[] = [
           action: 'create_customer',
           data: { email: 'test@example.com' }
         },
-        output: {
+        expectedOutput: {
           id: 'cus_123',
           email: 'test@example.com'
         }
@@ -142,7 +142,7 @@ export const mockSkills: Skill[] = [
           data: { sales: [100, 200, 300] },
           outputPath: '/reports/sales.pdf'
         },
-        output: {
+        expectedOutput: {
           filePath: '/reports/sales.pdf',
           pageCount: 1
         }
@@ -215,7 +215,7 @@ export const mockSkills: Skill[] = [
           operation: 'create',
           userData: { email: 'john@example.com', name: 'John' }
         },
-        output: {
+        expectedOutput: {
           user: { id: 1, email: 'john@example.com', name: 'John' },
           affected: 1
         }
@@ -287,7 +287,7 @@ export const mockSkills: Skill[] = [
         input: {
           endpoints: ['https://api1.com/data', 'https://api2.com/data']
         },
-        output: {
+        expectedOutput: {
           aggregatedData: { total: 100, sources: 2 },
           fetchCount: 2
         }
@@ -315,7 +315,7 @@ export const mockSkills: Skill[] = [
 
 ## Summary Section
 [Brief summary of the entire content]`,
-    methodology: 'Cornell Note-Taking System: divide page into cue, notes, and summary sections',
+    //methodology: 'Cornell Note-Taking System: divide page into cue, notes, and summary sections',
     instructions: {
       steps: [
         'Read and understand the input text',
@@ -366,7 +366,7 @@ export const mockSkills: Skill[] = [
         input: {
           inputText: 'Photosynthesis is the process by which plants...'
         },
-        output: {
+        expectedOutput: {
           cornellNotes: '# Cornell Notes\n## Cue\n- What is photosynthesis?...'
         }
       }

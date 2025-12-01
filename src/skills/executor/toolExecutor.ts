@@ -149,7 +149,7 @@ export class ToolExecutor {
           toolsUsed: [toolId],
           logs,
           targetId: toolId,
-          targetType: 'tool',
+          targetType: 'tool' as const,
           executedAt: new Date().toISOString(),
           metadata: {
             executionTime: Date.now() - startTime,
@@ -164,8 +164,7 @@ export class ToolExecutor {
           input,
           output,
           success: true,
-          executionTime: Date.now() - startTime,
-          timestamp: new Date().toISOString()
+          executionTime: Date.now() - startTime
         });
         
         return result;
@@ -227,6 +226,9 @@ export class ToolExecutor {
    */
   private validateInput(input: Record<string, any>, tool: Tool): ExecutionError | null {
     const schema = tool.inputSchema;
+    
+    // Skip validation if no schema
+    if (!schema) return null;
     
     // Validar campos requeridos
     if (schema.required) {
