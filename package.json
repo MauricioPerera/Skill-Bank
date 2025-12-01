@@ -14,7 +14,10 @@
     "test:skills:coverage": "vitest run src/skills --coverage",
     "demo:skillbank": "tsx examples/demo-skillbank.ts",
     "demo:atomic": "tsx examples/demo-atomic-tools.ts",
-    "demo:rag": "tsx examples/demo-rag-integration.ts"
+    "demo:rag": "tsx examples/demo-rag-integration.ts",
+    "demo:complete": "tsx examples/demo-complete-mvp.ts",
+    "index:demo-docs": "tsx examples/index-demo-docs.ts",
+    "validate:context-aware": "tsx examples/validate-context-aware-skills.ts"
   },
   "keywords": [],
   "author": "",

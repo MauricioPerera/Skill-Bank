@@ -68,13 +68,14 @@ function generateId(): string {
 /**
  * Log execution record
  */
-export function logExecution(record: Omit<ExecutionRecord, 'id'>): string {
+export function logExecution(record: Omit<ExecutionRecord, 'id' | 'timestamp'>): string {
   const db = getDb();
   
   // Ensure table exists
   initExecutionStore();
   
   const id = generateId();
+  const timestamp = new Date().toISOString();
   
   const stmt = db.prepare(`
     INSERT INTO execution_history (
@@ -91,7 +92,7 @@ export function logExecution(record: Omit<ExecutionRecord, 'id'>): string {
     record.output ? JSON.stringify(record.output) : null,
     record.success ? 1 : 0,
     record.executionTime,
-    record.timestamp,
+    timestamp,
     record.error || null
   );
   
@@ -217,9 +218,9 @@ export function getExecutionStats(): ExecutionStats {
  */
 export function getTopSkills(limit: number = 10): Array<{
   skillId: string;
-  count: number;
+  executions: number;
   successRate: number;
-  avgTime: number;
+  avgExecutionTime: number;
 }> {
   const db = getDb();
   
@@ -242,9 +243,9 @@ export function getTopSkills(limit: number = 10): Array<{
   
   return rows.map(row => ({
     skillId: row.skill_id,
-    count: row.count,
+    executions: row.count,
     successRate: row.success_rate,
-    avgTime: row.avg_time
+    avgExecutionTime: row.avg_time
   }));
 }
 

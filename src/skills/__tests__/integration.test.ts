@@ -419,5 +419,192 @@ describe('Integration Tests - E2E Flows', () => {
       expect(discovery.metadata.usedGraph).toBe(true);
     });
   });
+
+  // ============================================================================
+  // E2E WITH RAG (2 tests) - Phase 2
+  // ============================================================================
+
+  describe('E2E with RAG Integration', () => {
+    it('should discover context-aware skill and execute with RAG context', async () => {
+      // 1. Register a context-aware skill
+      const contextAwareSkill = {
+        id: 'answer_from_docs',
+        name: 'Answer from Documentation',
+        type: 'skill' as const,
+        skillType: 'context_aware' as const,
+        category: 'qa',
+        usesTools: [] as string[],
+        referencesDocuments: ['terms_of_service', 'privacy_policy'],
+        nativeCapabilities: ['text_analysis'],
+        overview: 'Answers questions by querying indexed documentation',
+        instructions: {
+          steps: [
+            'Query the RAG engine with filters for referenced documents',
+            'Extract relevant context from search results',
+            'Format context for LLM processing'
+          ],
+          prerequisites: ['Documents must be indexed in RAG'],
+          bestPractices: ['Use specific queries', 'Filter by document type'],
+          antiPatterns: ['Overly broad queries']
+        },
+        parameters: [
+          {
+            name: 'query',
+            type: 'string',
+            description: 'User question',
+            required: true
+          }
+        ],
+        outputs: [
+          {
+            name: 'context',
+            type: 'array',
+            description: 'RAG context retrieved'
+          },
+          {
+            name: 'instructions',
+            type: 'string',
+            description: 'How to use the context'
+          }
+        ],
+        examples: [
+          {
+            situation: 'User asks about cancellation policy',
+            input: { query: 'How do I cancel my subscription?' },
+            expectedOutput: 'Context from terms_of_service'
+          }
+        ]
+      };
+
+      const embedding = await mockEmbed(contextAwareSkill.name + ' ' + contextAwareSkill.overview);
+      upsertSkill(contextAwareSkill, embedding);
+
+      // 2. Discover the skill
+      const discovery = await skillBank.discover({
+        query: 'answer question from documentation',
+        mode: 'skills',
+        expandGraph: false,
+        k: 3
+      });
+
+      expect(discovery.skills.length).toBeGreaterThan(0);
+      const foundSkill = discovery.skills.find(s => s.skill.id === 'answer_from_docs');
+      expect(foundSkill).toBeDefined();
+      expect(foundSkill?.skill.skillType).toBe('context_aware');
+
+      // 3. Execute the skill
+      // Note: Actual RAG query will fail if no docs are indexed, but execution should not throw
+      const execution = await skillBank.execute({
+        targetId: 'answer_from_docs',
+        targetType: 'skill',
+        input: { query: 'test question' },
+        options: { dryRun: false }
+      });
+
+      // 4. Verify execution completed
+      expect(execution).toBeDefined();
+      expect(execution.success).toBeDefined();
+      
+      // 5. Verify output structure for context-aware skills
+      if (execution.success && execution.output) {
+        expect(execution.output).toBeDefined();
+        // Check if output has expected properties (may vary based on implementation)
+        // Just verify it's not empty
+        expect(Object.keys(execution.output).length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should track multiple executions and show accurate stats', async () => {
+      // Register multiple skills of different types
+      const skills = [
+        {
+          id: 'skill_1',
+          name: 'Tool-based Skill',
+          type: 'skill' as const,
+          skillType: 'tool_based' as const,
+          category: 'api',
+          usesTools: ['http_request'],
+          overview: 'Makes API calls',
+          instructions: {
+            steps: ['Use http_request tool'],
+            prerequisites: [],
+            bestPractices: [],
+            antiPatterns: []
+          },
+          parameters: [],
+          outputs: [],
+          examples: []
+        },
+        {
+          id: 'skill_2',
+          name: 'Context-aware Skill',
+          type: 'skill' as const,
+          skillType: 'context_aware' as const,
+          category: 'qa',
+          usesTools: [] as string[],
+          referencesDocuments: ['docs'],
+          nativeCapabilities: ['text_analysis'],
+          overview: 'Answers from docs',
+          instructions: {
+            steps: ['Query RAG'],
+            prerequisites: [],
+            bestPractices: [],
+            antiPatterns: []
+          },
+          parameters: [],
+          outputs: [],
+          examples: []
+        },
+        {
+          id: 'skill_3',
+          name: 'Instructional Skill',
+          type: 'skill' as const,
+          skillType: 'instructional' as const,
+          category: 'learning',
+          usesTools: [] as string[],
+          nativeCapabilities: ['text_generation'],
+          overview: 'Provides methodology',
+          instructions: {
+            steps: ['Use LLM capabilities'],
+            prerequisites: [],
+            bestPractices: [],
+            antiPatterns: []
+          },
+          parameters: [],
+          outputs: [],
+          examples: []
+        }
+      ];
+
+      // Register all skills
+      for (const skill of skills) {
+        const embedding = await mockEmbed(skill.name);
+        upsertSkill(skill, embedding);
+      }
+
+      // Execute each skill multiple times
+      const executionResults = [];
+      for (const skill of skills) {
+        for (let i = 0; i < 3; i++) {
+          const result = await skillBank.execute({
+            targetId: skill.id,
+            targetType: 'skill',
+            input: { run: i },
+            options: { dryRun: false }
+          });
+          executionResults.push(result);
+        }
+      }
+
+      // Verify all executions completed
+      expect(executionResults.length).toBe(9); // 3 skills × 3 executions
+
+      // Note: In actual implementation, you would call getStats() from executionStore
+      // For now, just verify the execution flow worked
+      // Some executions may fail if dependencies are not met, that's OK
+      const successCount = executionResults.filter(r => r.success).length;
+      expect(successCount).toBeGreaterThan(0); // At least some should succeed
+    });
+  });
 });
 

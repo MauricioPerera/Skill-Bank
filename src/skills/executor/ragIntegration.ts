@@ -4,7 +4,7 @@
  * Provides integration between Skill Bank and the RAG engine
  */
 
-import { queryRAG } from '../../ragEngine.js';
+import { queryWithGraph } from '../../ragEngine.js';
 import type { SearchFilters } from '../types.js';
 
 export interface RAGIntegrationConfig {
@@ -31,37 +31,11 @@ export async function queryRAGWithSkillConfig(
   query: string,
   config: RAGIntegrationConfig
 ): Promise<RAGQueryResult> {
-  const filters = config.queryFilters || {};
-  
-  // Build filter object for RAG query
-  const ragFilters: any = {};
-  
-  if (filters.doc_id) {
-    if (Array.isArray(filters.doc_id)) {
-      ragFilters.doc_id = filters.doc_id;
-    } else {
-      ragFilters.doc_id = [filters.doc_id];
-    }
-  }
-  
-  if (filters.level !== undefined) {
-    if (Array.isArray(filters.level)) {
-      ragFilters.level = filters.level;
-    } else {
-      ragFilters.level = [filters.level];
-    }
-  }
-  
-  if (filters.is_leaf !== undefined) {
-    ragFilters.is_leaf = filters.is_leaf;
-  }
-  
-  // Query RAG engine
-  const result = await queryRAG(query, {
-    k: 5,
-    filters: ragFilters,
+  // Query RAG engine with graph expansion
+  const result = await queryWithGraph(query, 5, {
     useGraph: true,
-    maxHops: 1
+    maxHops: 1,
+    edgeTypes: ['SAME_TOPIC', 'PARENT_OF', 'CHILD_OF']
   });
   
   return {
