@@ -165,17 +165,17 @@ export function initCredentialStore() {
  * @param options - Storage options
  * @returns Credential ID
  */
-export function storeCredential(
+export async function storeCredential(
   name: string,
   type: CredentialType,
   service: string,
   value: CredentialValue,
   options: StoreCredentialOptions = {}
-): string {
+): Promise<string> {
   const db = getDb();
   
   // Encrypt the credential value
-  const encrypted = encryptCredential(value);
+  const encrypted = await encryptCredential(value);
   
   // Generate IDs
   const id = generateCredentialId();
@@ -292,12 +292,12 @@ export function getCredentialMetadata(credentialId: string): Omit<Credential, 'e
  * @throws AccessDeniedError if entity lacks access
  * @throws CredentialNotFoundError if credential doesn't exist
  */
-export function retrieveCredential(
+export async function retrieveCredential(
   credentialId: string,
   requestingEntityId: string,
   requestingEntityType: EntityType,
   options: RetrieveCredentialOptions = {}
-): DecryptedCredential {
+): Promise<DecryptedCredential> {
   const db = getDb();
   
   try {
@@ -334,7 +334,7 @@ export function retrieveCredential(
     
     // Decrypt the value
     const encryptedData = JSON.parse(row.encrypted_value);
-    const value = decryptCredential(encryptedData);
+    const value = await decryptCredential(encryptedData);
     
     // Log successful retrieval
     logCredentialAccess(
@@ -389,7 +389,7 @@ export function retrieveCredential(
  * @returns Decrypted credential
  * @internal
  */
-export function retrieveCredentialUnchecked(credentialId: string): DecryptedCredential {
+export async function retrieveCredentialUnchecked(credentialId: string): Promise<DecryptedCredential> {
   const db = getDb();
   
   const row = db.prepare(`
@@ -408,7 +408,7 @@ export function retrieveCredentialUnchecked(credentialId: string): DecryptedCred
   
   // Decrypt the value
   const encryptedData = JSON.parse(row.encrypted_value);
-  const value = decryptCredential(encryptedData);
+  const value = await decryptCredential(encryptedData);
   
   return {
     id: row.id,
@@ -488,17 +488,17 @@ export function listCredentials(
  * @param newValue - New credential value
  * @returns True if rotation succeeded
  */
-export function rotateCredential(
+export async function rotateCredential(
   credentialId: string,
   newValue: CredentialValue
-): boolean {
+): Promise<boolean> {
   const db = getDb();
   
   // Verify credential exists
   const existing = getCredentialMetadata(credentialId);
   
   // Encrypt new value
-  const encrypted = encryptCredential(newValue);
+  const encrypted = await encryptCredential(newValue);
   
   const encryptedValue = JSON.stringify({
     encryptedValue: encrypted.encryptedValue,

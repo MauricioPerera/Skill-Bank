@@ -47,13 +47,13 @@ describe('Encryption Module', () => {
   // ============================================
   
   describe('encryptCredential / decryptCredential', () => {
-    it('should encrypt and decrypt API key credential', () => {
+    it('should encrypt and decrypt API key credential', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'sk_test_12345678901234567890',
         apiSecret: 'secret_abc123'
       };
       
-      const encrypted = encryptCredential(credential);
+      const encrypted = await encryptCredential(credential);
       
       // Verify encrypted structure
       expect(encrypted).toHaveProperty('encryptedValue');
@@ -66,11 +66,11 @@ describe('Encryption Module', () => {
       expect(encrypted.encryptedValue).not.toContain('secret_abc');
       
       // Decrypt and verify
-      const decrypted = decryptCredential(encrypted) as ApiKeyCredential;
+      const decrypted = await decryptCredential(encrypted) as ApiKeyCredential;
       expect(decrypted).toEqual(credential);
     });
     
-    it('should encrypt and decrypt OAuth token credential', () => {
+    it('should encrypt and decrypt OAuth token credential', async () => {
       const credential: OAuthCredential = {
         accessToken: 'ya29.a0AfH6SMBx...',
         refreshToken: 'rt_1234567890',
@@ -79,14 +79,14 @@ describe('Encryption Module', () => {
         scopes: ['drive.readonly', 'gmail.send']
       };
       
-      const encrypted = encryptCredential(credential);
-      const decrypted = decryptCredential(encrypted) as OAuthCredential;
+      const encrypted = await encryptCredential(credential);
+      const decrypted = await decryptCredential(encrypted) as OAuthCredential;
       
       expect(decrypted).toEqual(credential);
       expect(decrypted.scopes).toEqual(['drive.readonly', 'gmail.send']);
     });
     
-    it('should encrypt and decrypt database connection credential', () => {
+    it('should encrypt and decrypt database connection credential', async () => {
       const credential: DbConnectionCredential = {
         host: 'db.example.com',
         port: 5432,
@@ -96,23 +96,23 @@ describe('Encryption Module', () => {
         ssl: true
       };
       
-      const encrypted = encryptCredential(credential);
+      const encrypted = await encryptCredential(credential);
       
       // Password should not be visible in encrypted form
       expect(encrypted.encryptedValue).not.toContain('super_secret_password');
       
-      const decrypted = decryptCredential(encrypted) as DbConnectionCredential;
+      const decrypted = await decryptCredential(encrypted) as DbConnectionCredential;
       expect(decrypted).toEqual(credential);
       expect(decrypted.password).toBe('super_secret_password_123');
     });
     
-    it('should use unique salt and IV for each encryption', () => {
+    it('should use unique salt and IV for each encryption', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'sk_test_same_value'
       };
       
-      const encrypted1 = encryptCredential(credential);
-      const encrypted2 = encryptCredential(credential);
+      const encrypted1 = await encryptCredential(credential);
+      const encrypted2 = await encryptCredential(credential);
       
       // Same plaintext should produce different ciphertext
       expect(encrypted1.encryptedValue).not.toBe(encrypted2.encryptedValue);
@@ -120,8 +120,8 @@ describe('Encryption Module', () => {
       expect(encrypted1.iv).not.toBe(encrypted2.iv);
       
       // But both should decrypt to the same value
-      const decrypted1 = decryptCredential(encrypted1);
-      const decrypted2 = decryptCredential(encrypted2);
+      const decrypted1 = await decryptCredential(encrypted1);
+      const decrypted2 = await decryptCredential(encrypted2);
       expect(decrypted1).toEqual(decrypted2);
     });
   });
@@ -131,12 +131,12 @@ describe('Encryption Module', () => {
   // ============================================
   
   describe('Authenticated Encryption', () => {
-    it('should detect tampering with encrypted value', () => {
+    it('should detect tampering with encrypted value', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'sk_test_12345'
       };
       
-      const encrypted = encryptCredential(credential);
+      const encrypted = await encryptCredential(credential);
       
       // Tamper with encrypted value (flip a bit in the middle)
       const encryptedBuffer = Buffer.from(encrypted.encryptedValue, 'base64');
@@ -148,17 +148,15 @@ describe('Encryption Module', () => {
       };
       
       // Should throw on decryption (auth tag won't match)
-      expect(() => {
-        decryptCredential(tampered);
-      }).toThrow(DecryptionError);
+      await expect(decryptCredential(tampered)).rejects.toThrow(DecryptionError);
     });
     
-    it('should detect tampering with auth tag', () => {
+    it('should detect tampering with auth tag', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'sk_test_12345'
       };
       
-      const encrypted = encryptCredential(credential);
+      const encrypted = await encryptCredential(credential);
       
       // Tamper with auth tag
       const tampered = {
@@ -167,18 +165,16 @@ describe('Encryption Module', () => {
       };
       
       // Should throw on decryption
-      expect(() => {
-        decryptCredential(tampered);
-      }).toThrow(DecryptionError);
+      await expect(decryptCredential(tampered)).rejects.toThrow(DecryptionError);
     });
     
-    it('should fail with wrong master key', () => {
+    it('should fail with wrong master key', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'sk_test_12345'
       };
       
       // Encrypt with one key
-      const encrypted = encryptCredential(credential);
+      const encrypted = await encryptCredential(credential);
       
       // Try to decrypt with different key
       process.env.MASTER_ENCRYPTION_KEY = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
@@ -194,7 +190,7 @@ describe('Encryption Module', () => {
   // ============================================
   
   describe('Master Key', () => {
-    it('should throw if master key is not set', () => {
+    it('should throw if master key is not set', async () => {
       delete process.env.MASTER_ENCRYPTION_KEY;
       
       expect(() => {
@@ -301,28 +297,28 @@ describe('Encryption Module', () => {
   // ============================================
   
   describe('Edge Cases', () => {
-    it('should handle empty credential object', () => {
+    it('should handle empty credential object', async () => {
       const credential = {};
       
-      const encrypted = encryptCredential(credential);
-      const decrypted = decryptCredential(encrypted);
+      const encrypted = await encryptCredential(credential);
+      const decrypted = await decryptCredential(encrypted);
       
       expect(decrypted).toEqual(credential);
     });
     
-    it('should handle credential with special characters', () => {
+    it('should handle credential with special characters', async () => {
       const credential: ApiKeyCredential = {
         apiKey: 'test\n\r\t"\'\\/@#$%^&*(){}[]<>|~`',
         apiSecret: '🔐💻🚀'
       };
       
-      const encrypted = encryptCredential(credential);
-      const decrypted = decryptCredential(encrypted) as ApiKeyCredential;
+      const encrypted = await encryptCredential(credential);
+      const decrypted = await decryptCredential(encrypted) as ApiKeyCredential;
       
       expect(decrypted).toEqual(credential);
     });
     
-    it('should handle large credential objects', () => {
+    it('should handle large credential objects', async () => {
       const credential = {
         largeField: 'x'.repeat(10000), // 10KB string
         nested: {
@@ -338,8 +334,8 @@ describe('Encryption Module', () => {
         }
       };
       
-      const encrypted = encryptCredential(credential);
-      const decrypted = decryptCredential(encrypted);
+      const encrypted = await encryptCredential(credential);
+      const decrypted = await decryptCredential(encrypted);
       
       expect(decrypted).toEqual(credential);
     });

@@ -1,10 +1,10 @@
 /**
- * Encryption module for Skill Bank v2.0
+ * Encryption module for Skill Bank v2.5
  * 
  * Implements AES-256-GCM encryption for credential storage:
  * - NIST approved algorithm
  * - Authenticated encryption (prevents tampering)
- * - PBKDF2 key derivation (100,000 iterations)
+ * - Multi-KDF support (PBKDF2, Argon2id)
  * - Per-credential salt and IV
  * 
  * @module skills/security/encryption
@@ -15,8 +15,14 @@ import {
   EncryptedData,
   CredentialValue,
   EncryptionError,
-  DecryptionError
+  DecryptionError,
+  KDFType
 } from '../types/credentials.js';
+import {
+  deriveKey as deriveKeyWithKDF,
+  selectKDFForNewCredential,
+  getKDFConfig
+} from './kdf.js';
 
 // ============================================
 // Constants
@@ -90,25 +96,7 @@ function getMasterKey(): Buffer {
   return key;
 }
 
-/**
- * Derive encryption key from master key + salt
- * 
- * Uses PBKDF2 with SHA-256 hash function
- * 
- * @param salt - Random salt for this credential
- * @returns Derived 256-bit key
- */
-function deriveKey(salt: Buffer): Buffer {
-  const masterKey = getMasterKey();
-  
-  return crypto.pbkdf2Sync(
-    masterKey,
-    salt,
-    PBKDF2_ITERATIONS,
-    KEY_LENGTH,
-    'sha256'
-  );
-}
+// deriveKey() moved to kdf.ts module (v2.5)
 
 // ============================================
 // Encryption Functions
@@ -118,45 +106,58 @@ function deriveKey(salt: Buffer): Buffer {
  * Encrypt credential value with AES-256-GCM
  * 
  * Process:
- * 1. Generate random salt (16 bytes)
- * 2. Derive encryption key from master + salt (PBKDF2)
- * 3. Generate random IV (16 bytes)
- * 4. Create cipher with AES-256-GCM
- * 5. Encrypt the JSON value
- * 6. Get authentication tag (prevents tampering)
- * 7. Return encrypted data + salt + IV + tag
+ * 1. Select KDF (user-specified or default)
+ * 2. Generate random salt (16 bytes)
+ * 3. Derive encryption key from master + salt (using selected KDF)
+ * 4. Generate random IV (16 bytes)
+ * 5. Create cipher with AES-256-GCM
+ * 6. Encrypt the JSON value
+ * 7. Get authentication tag (prevents tampering)
+ * 8. Return encrypted data + salt + IV + tag + KDF metadata
  * 
  * @param value - Credential value to encrypt
- * @returns Encrypted data structure
+ * @param kdfType - Optional KDF type (defaults to env or argon2id)
+ * @returns Encrypted data structure with KDF metadata
  */
-export function encryptCredential(value: CredentialValue): EncryptedData {
+export async function encryptCredential(
+  value: CredentialValue,
+  kdfType?: KDFType
+): Promise<EncryptedData> {
   try {
-    // 1. Generate random salt
+    // 1. Select KDF configuration
+    const kdfConfig = kdfType ? getKDFConfig(kdfType) : selectKDFForNewCredential();
+    
+    // 2. Generate random salt
     const salt = crypto.randomBytes(SALT_LENGTH);
     
-    // 2. Derive key from master + salt
-    const key = deriveKey(salt);
+    // 3. Derive key from master + salt using selected KDF
+    const masterKey = getMasterKey();
+    const key = await deriveKeyWithKDF(masterKey, salt, kdfConfig);
     
-    // 3. Generate random IV
+    // 4. Generate random IV
     const iv = crypto.randomBytes(IV_LENGTH);
     
-    // 4. Create cipher
+    // 5. Create cipher
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
     
-    // 5. Encrypt
+    // 6. Encrypt
     const plaintext = JSON.stringify(value);
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     
-    // 6. Get auth tag (GCM mode provides authenticated encryption)
+    // 7. Get auth tag (GCM mode provides authenticated encryption)
     const authTag = cipher.getAuthTag();
     
-    // 7. Return encrypted data
+    // 8. Return encrypted data with KDF metadata
     return {
       encryptedValue: encrypted,
       iv: iv.toString('base64'),
       authTag: authTag.toString('base64'),
-      salt: salt.toString('base64')
+      salt: salt.toString('base64'),
+      // v2.5: KDF metadata for decryption
+      kdfType: kdfConfig.type,
+      kdfParameters: kdfConfig.parameters,
+      kdfVersion: kdfConfig.version
     };
   } catch (error) {
     throw new EncryptionError(
@@ -172,35 +173,50 @@ export function encryptCredential(value: CredentialValue): EncryptedData {
  * Decrypt credential value with AES-256-GCM
  * 
  * Process:
- * 1. Derive encryption key from master + salt (same as encryption)
- * 2. Create decipher with AES-256-GCM
- * 3. Set authentication tag (verifies integrity)
- * 4. Decrypt the value
- * 5. Parse JSON
+ * 1. Detect KDF type from encrypted data (or default to PBKDF2 for legacy)
+ * 2. Derive encryption key from master + salt (using detected KDF)
+ * 3. Create decipher with AES-256-GCM
+ * 4. Set authentication tag (verifies integrity)
+ * 5. Decrypt the value
+ * 6. Parse JSON
+ * 
+ * Backward compatibility:
+ * - If kdfType is not present, assumes PBKDF2 (v2.0 data)
+ * - If kdfParameters is not present, uses default PBKDF2 parameters
  * 
  * @param encryptedData - Encrypted data structure
  * @returns Decrypted credential value
  * @throws DecryptionError if decryption fails or data has been tampered
  */
-export function decryptCredential(encryptedData: EncryptedData): CredentialValue {
+export async function decryptCredential(encryptedData: EncryptedData): Promise<CredentialValue> {
   try {
-    // 1. Derive key from master + salt
-    const saltBuffer = Buffer.from(encryptedData.salt, 'base64');
-    const key = deriveKey(saltBuffer);
+    // 1. Detect KDF type (default to PBKDF2 for v2.0 compatibility)
+    const kdfType = encryptedData.kdfType || 'pbkdf2';
+    const kdfConfig = getKDFConfig(kdfType);
     
-    // 2. Create decipher
+    // Use provided parameters or defaults
+    if (encryptedData.kdfParameters) {
+      kdfConfig.parameters = encryptedData.kdfParameters;
+    }
+    
+    // 2. Derive key from master + salt using appropriate KDF
+    const saltBuffer = Buffer.from(encryptedData.salt, 'base64');
+    const masterKey = getMasterKey();
+    const key = await deriveKeyWithKDF(masterKey, saltBuffer, kdfConfig);
+    
+    // 3. Create decipher
     const ivBuffer = Buffer.from(encryptedData.iv, 'base64');
     const decipher = crypto.createDecipheriv(ALGORITHM, key, ivBuffer);
     
-    // 3. Set auth tag (must be done before decryption)
+    // 4. Set auth tag (must be done before decryption)
     const authTagBuffer = Buffer.from(encryptedData.authTag, 'base64');
     decipher.setAuthTag(authTagBuffer);
     
-    // 4. Decrypt
+    // 5. Decrypt
     let decrypted = decipher.update(encryptedData.encryptedValue, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
     
-    // 5. Parse JSON
+    // 6. Parse JSON
     return JSON.parse(decrypted) as CredentialValue;
   } catch (error) {
     // Auth tag verification failure or corrupted data
@@ -340,22 +356,22 @@ export function getAlgorithmInfo() {
  * @param newMasterKey - New master key (for encryption)
  * @returns Re-encrypted data
  */
-export function reEncryptWithNewKey(
+export async function reEncryptWithNewKey(
   encryptedData: EncryptedData,
   oldMasterKey: Buffer,
   newMasterKey: Buffer
-): EncryptedData {
+): Promise<EncryptedData> {
   // Save current master key
   const currentMasterKey = process.env.MASTER_ENCRYPTION_KEY;
   
   try {
     // Decrypt with old key
     process.env.MASTER_ENCRYPTION_KEY = oldMasterKey.toString('hex');
-    const decrypted = decryptCredential(encryptedData);
+    const decrypted = await decryptCredential(encryptedData);
     
     // Encrypt with new key
     process.env.MASTER_ENCRYPTION_KEY = newMasterKey.toString('hex');
-    const reEncrypted = encryptCredential(decrypted);
+    const reEncrypted = await encryptCredential(decrypted);
     
     return reEncrypted;
   } finally {
