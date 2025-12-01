@@ -72,7 +72,6 @@ function getMasterKey(): Buffer {
   if (!keyHex) {
     throw new EncryptionError(
       'MASTER_ENCRYPTION_KEY environment variable not set',
-      'MISSING_MASTER_KEY',
       {
         hint: 'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
       }
@@ -84,7 +83,6 @@ function getMasterKey(): Buffer {
   if (key.length !== KEY_LENGTH) {
     throw new EncryptionError(
       `MASTER_ENCRYPTION_KEY must be ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} hex characters), got ${key.length} bytes`,
-      'INVALID_MASTER_KEY_LENGTH',
       { expected: KEY_LENGTH, actual: key.length }
     );
   }
@@ -163,7 +161,6 @@ export function encryptCredential(value: CredentialValue): EncryptedData {
   } catch (error) {
     throw new EncryptionError(
       'Failed to encrypt credential',
-      'ENCRYPTION_FAILED',
       {
         originalError: error instanceof Error ? error.message : String(error)
       }
@@ -210,7 +207,6 @@ export function decryptCredential(encryptedData: EncryptedData): CredentialValue
     if (error instanceof Error && error.message.includes('auth')) {
       throw new DecryptionError(
         'Failed to decrypt credential: data has been tampered with or corrupted',
-        'AUTHENTICATION_FAILED',
         {
           hint: 'The credential data may have been tampered with or the master key is incorrect'
         }
@@ -219,7 +215,6 @@ export function decryptCredential(encryptedData: EncryptedData): CredentialValue
     
     throw new DecryptionError(
       'Failed to decrypt credential',
-      'DECRYPTION_FAILED',
       {
         originalError: error instanceof Error ? error.message : String(error)
       }

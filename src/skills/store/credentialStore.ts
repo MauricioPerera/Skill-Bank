@@ -191,7 +191,6 @@ export function storeCredential(
   } catch (error) {
     throw new EncryptionError(
       'Failed to store encryption key metadata',
-      'KEY_STORAGE_FAILED',
       { originalError: error instanceof Error ? error.message : String(error) }
     );
   }
