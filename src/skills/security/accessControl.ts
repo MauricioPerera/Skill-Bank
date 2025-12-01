@@ -12,6 +12,7 @@
 
 import { getDb } from '../store/unifiedStore.js';
 import { generatePolicyId } from './encryption.js';
+import { logCredentialAccess } from './auditLogger.js';
 import {
   CredentialAccessPolicy,
   EntityType,
@@ -75,6 +76,22 @@ export function grantAccess(
     options.reason || null
   );
   
+  // Log access grant
+  logCredentialAccess(
+    credentialId,
+    entityId,
+    entityType,
+    'grant_access',
+    true,
+    {
+      metadata: {
+        accessLevel: options.accessLevel || 'read',
+        grantedBy: options.grantedBy,
+        reason: options.reason
+      }
+    }
+  );
+  
   return id;
 }
 
@@ -98,7 +115,20 @@ export function revokeAccess(
     WHERE credential_id = ? AND entity_id = ? AND entity_type = ?
   `).run(credentialId, entityId, entityType);
   
-  return result.changes > 0;
+  const success = result.changes > 0;
+  
+  // Log access revocation
+  if (success) {
+    logCredentialAccess(
+      credentialId,
+      entityId,
+      entityType,
+      'revoke_access',
+      true
+    );
+  }
+  
+  return success;
 }
 
 /**

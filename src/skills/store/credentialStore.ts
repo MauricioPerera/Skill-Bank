@@ -19,6 +19,7 @@ import {
   hashKey
 } from '../security/encryption.js';
 import { assertAccess } from '../security/accessControl.js';
+import { logCredentialAccess } from '../security/auditLogger.js';
 import {
   Credential,
   DecryptedCredential,
@@ -32,7 +33,8 @@ import {
   RetrieveCredentialOptions,
   CredentialFilters,
   CredentialNotFoundError,
-  EncryptionError
+  EncryptionError,
+  AccessDeniedError
 } from '../types/credentials.js';
 
 // ============================================
@@ -224,6 +226,15 @@ export function storeCredential(
     'active'
   );
   
+  // Log credential creation
+  logCredentialAccess(
+    id,
+    'system',
+    'tool',
+    'create',
+    true
+  );
+  
   return id;
 }
 
@@ -272,6 +283,7 @@ export function getCredentialMetadata(credentialId: string): Omit<Credential, 'e
  * Retrieve and decrypt a credential
  * 
  * Checks access policies before returning the decrypted value.
+ * Logs all access attempts (success and failure) to audit trail.
  * 
  * @param credentialId - Credential ID
  * @param requestingEntityId - ID of the skill/tool requesting access
@@ -289,36 +301,83 @@ export function retrieveCredential(
 ): DecryptedCredential {
   const db = getDb();
   
-  // Check access policy (throws if denied)
-  assertAccess(credentialId, requestingEntityId, requestingEntityType, 'read');
-  
-  const row = db.prepare(`
-    SELECT id, name, type, service, encrypted_value,
-           metadata, environment
-    FROM credentials
-    WHERE id = ? AND status = 'active'
-  `).get(credentialId) as any;
-  
-  if (!row) {
-    throw new CredentialNotFoundError(
-      `Credential not found or not active: ${credentialId}`,
-      { credentialId }
+  try {
+    // Check access policy (throws if denied)
+    assertAccess(credentialId, requestingEntityId, requestingEntityType, 'read');
+    
+    const row = db.prepare(`
+      SELECT id, name, type, service, encrypted_value,
+             metadata, environment
+      FROM credentials
+      WHERE id = ? AND status = 'active'
+    `).get(credentialId) as any;
+    
+    if (!row) {
+      // Log failed retrieval (credential not found)
+      logCredentialAccess(
+        credentialId,
+        requestingEntityId,
+        requestingEntityType,
+        'retrieve',
+        false,
+        {
+          userId: options.userId,
+          ipAddress: options.ipAddress,
+          errorMessage: 'Credential not found or not active'
+        }
+      );
+      
+      throw new CredentialNotFoundError(
+        `Credential not found or not active: ${credentialId}`,
+        { credentialId }
+      );
+    }
+    
+    // Decrypt the value
+    const encryptedData = JSON.parse(row.encrypted_value);
+    const value = decryptCredential(encryptedData);
+    
+    // Log successful retrieval
+    logCredentialAccess(
+      credentialId,
+      requestingEntityId,
+      requestingEntityType,
+      'retrieve',
+      true,
+      {
+        userId: options.userId,
+        ipAddress: options.ipAddress
+      }
     );
+    
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.type as CredentialType,
+      service: row.service,
+      value,
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+      environment: row.environment as Environment
+    };
+  } catch (error) {
+    // Log access denied
+    if (error instanceof AccessDeniedError) {
+      logCredentialAccess(
+        credentialId,
+        requestingEntityId,
+        requestingEntityType,
+        'retrieve',
+        false,
+        {
+          userId: options.userId,
+          ipAddress: options.ipAddress,
+          errorMessage: error.message
+        }
+      );
+    }
+    
+    throw error;
   }
-  
-  // Decrypt the value
-  const encryptedData = JSON.parse(row.encrypted_value);
-  const value = decryptCredential(encryptedData);
-  
-  return {
-    id: row.id,
-    name: row.name,
-    type: row.type as CredentialType,
-    service: row.service,
-    value,
-    metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
-    environment: row.environment as Environment
-  };
 }
 
 /**
@@ -460,7 +519,18 @@ export function rotateCredential(
     WHERE id = ? AND status = 'active'
   `).run(encryptedValue, now, now, credentialId);
   
-  return result.changes > 0;
+  const success = result.changes > 0;
+  
+  // Log rotation
+  logCredentialAccess(
+    credentialId,
+    'system',
+    'tool',
+    'rotate',
+    success
+  );
+  
+  return success;
 }
 
 /**
@@ -487,7 +557,21 @@ export function revokeCredential(
     WHERE id = ? AND status = 'active'
   `).run(now, reason || 'No reason provided', credentialId);
   
-  return result.changes > 0;
+  const success = result.changes > 0;
+  
+  // Log revocation
+  logCredentialAccess(
+    credentialId,
+    'system',
+    'tool',
+    'revoke',
+    success,
+    {
+      metadata: { reason: reason || 'No reason provided' }
+    }
+  );
+  
+  return success;
 }
 
 /**
