@@ -3,9 +3,11 @@
 > Dynamic capability discovery for AI agents with built-in memory and learning  
 > Tools + Skills + RAG + Memory + Execution Tracking, all in one coherent architecture.
 
+[![CI](https://github.com/MauricioPerera/Skill-Bank/actions/workflows/ci.yml/badge.svg)](https://github.com/MauricioPerera/Skill-Bank/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-128%20passing-brightgreen)](https://github.com/MauricioPerera/Skill-Bank)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
+[![Release](https://img.shields.io/github/v/release/MauricioPerera/Skill-Bank)](https://github.com/MauricioPerera/Skill-Bank/releases)
 
 ---
 
